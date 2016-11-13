@@ -25,6 +25,6 @@ public class Meeting {
     }
 
     public String toString() {
-        return dateformat.format(date); 
+        return dateformat.format(date);
     }
 }

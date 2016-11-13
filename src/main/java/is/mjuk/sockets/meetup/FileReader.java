@@ -6,7 +6,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 
 public class FileReader {
-    
+
     private ArrayList<Meeting> meeting_points = new ArrayList<Meeting>();
 
     public FileReader(String filename) throws FileNotFoundException {
@@ -18,7 +18,7 @@ public class FileReader {
 
             while ((next_char = in.read()) != -1) {
                 sb.append((char) next_char);
-                if (sb.length() == "2016-11-13 13:10\n".length()) { 
+                if (sb.length() == "2016-11-13 13:10\n".length()) {
                     meeting_points.add(new Meeting(sb.toString()));
                     sb = new StringBuilder();
                 }
@@ -35,9 +35,9 @@ public class FileReader {
             System.exit(2);
         }
     }
-    
+
     public ArrayList<Meeting> getDatetimes() {
         return this.meeting_points;
     }
-    
+
 }

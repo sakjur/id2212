@@ -7,7 +7,7 @@ import java.util.NoSuchElementException;
 
 public class MeetingStore {
     private ArrayList<Meeting> meeting_points;
-    private Set<Long> id = new TreeSet<Long>(); 
+    private Set<Long> id = new TreeSet<Long>();
 
     public MeetingStore(long id, ArrayList<Meeting> meeting_points) {
         this.id.add(id);
