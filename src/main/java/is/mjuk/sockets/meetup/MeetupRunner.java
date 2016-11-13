@@ -1,15 +1,17 @@
 package is.mjuk.sockets.meetup;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.io.FileNotFoundException;
 import java.text.ParseException;
 
 public class MeetupRunner implements Runnable {
     private String filename;
+    private int peers;
     private MeetingStore store;
-    private boolean flag = false;
+    private LinkedList<MeetingStore> mergequeue = new LinkedList<MeetingStore>();
 
-    public MeetupRunner(String filename) {
+    public MeetupRunner(int peers, String filename) {
         this.filename = filename;
+        this.peers = peers;
     }
 
     public void run() {
@@ -25,34 +27,34 @@ public class MeetupRunner implements Runnable {
 
 
         this.store = new MeetingStore(1, fr.getDatetimes());
-        flag = true;
-        this.print_meeting_times();
 
-        System.out.println("MERGING WITH 2016-11-13 13:07");
+        while (true) {
+            MeetingStore head = this.mergequeue.poll();
 
-        ArrayList<Meeting> al = new ArrayList<Meeting>();
-        ArrayList<Meeting> al2 = new ArrayList<Meeting>();
-        try {
-            al.add(new Meeting("2016-12-24 15:00"));
-            al.add(new Meeting("2017-01-18 14:34"));
-            al2.add(new Meeting("2017-01-18 14:34"));
-        } catch (ParseException e) {
-            return;
-        }
+            if (this.store.getIds().size() == peers ||
+                    this.store.getMeetings().size() == 0) {
+                System.out.format("[DONE] Found common meeting times for %s participants\n",
+                    peers);
+                this.print_meeting_times();
+                return;
+            }
 
-        MeetingStore m = new MeetingStore(3, al2);
-        m.merge(2, al);
-
-        this.store.merge(2, al);
-        this.store.merge(m);
-        this.print_meeting_times();
-
-        for (long n : this.store.getIds()) {
-            System.out.println(n);
+            if (head == null) {
+                continue;
+            } else {
+                this.store.merge(head);
+            }
         }
     }
 
+    public void add_to_mergequeue(MeetingStore m) {
+        this.mergequeue.add(m);
+    }
+
     public void print_meeting_times() {
+        if (this.store.getMeetings().size() == 0) {
+            System.out.println("No matching times found :(\n");
+        }
         for (Meeting m : this.store.getMeetings()) {
             System.out.println(m.toString());
         }

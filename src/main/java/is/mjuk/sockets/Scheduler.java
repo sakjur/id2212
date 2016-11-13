@@ -1,6 +1,10 @@
 package is.mjuk.sockets;
 
 import is.mjuk.sockets.meetup.MeetupRunner;
+import is.mjuk.sockets.meetup.Meeting;
+import is.mjuk.sockets.meetup.MeetingStore;
+import java.util.ArrayList;
+import java.text.ParseException;
 
 /**
  * Networked meeting scheduling
@@ -9,7 +13,7 @@ public class Scheduler {
 
     public static String IP_ADDRESS = "127.0.0.1";
     public static String PORT = "7777";
-    public static String NUMBER_OF_PEERS = null;
+    public static Integer NUMBER_OF_PEERS = null;
     public static String FILENAME = "./schedule.txt";
 
     /**
@@ -35,7 +39,17 @@ public class Scheduler {
             NUMBER_OF_PEERS
         );
 
-        MeetupRunner ms = new MeetupRunner(FILENAME);
+        ArrayList<Meeting> al = new ArrayList<Meeting>();
+        try {
+            al.add(new Meeting("2016-12-24 15:00"));
+            al.add(new Meeting("2017-01-18 14:34"));
+        } catch (ParseException e) {
+            return;
+        }
+        MeetingStore m = new MeetingStore(2, al);
+
+        MeetupRunner ms = new MeetupRunner(NUMBER_OF_PEERS, FILENAME);
+        ms.add_to_mergequeue(m);
         Thread t = new Thread(ms);
         t.start();
     }
@@ -56,7 +70,7 @@ public class Scheduler {
                 } else if (arg.equals("--file") || arg.equals("-f")) {
                     expect = CLI.FILENAME;
                 } else if (NUMBER_OF_PEERS == null) {
-                    NUMBER_OF_PEERS = arg;
+                    NUMBER_OF_PEERS = Integer.parseInt(arg);
                 } else {
                     System.err.format("Unknown command-line argument: %s\n", arg);
                     System.exit(1);
