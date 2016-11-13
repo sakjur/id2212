@@ -36,10 +36,11 @@ public class MeetupRunner implements Runnable {
                 System.out.format("[DONE] Found common meeting times for %s participants\n",
                     peers);
                 this.print_meeting_times();
-                return;
+                break;
             }
 
             if (head == null) {
+                // TODO: Request from the net stack
                 continue;
             } else {
                 this.store.merge(head);
@@ -53,8 +54,9 @@ public class MeetupRunner implements Runnable {
 
     public void print_meeting_times() {
         if (this.store.getMeetings().size() == 0) {
-            System.out.println("No matching times found :(\n");
+            System.out.println("No common times found :(");
         }
+        // System.out.println(this.store.netformat());
         for (Meeting m : this.store.getMeetings()) {
             System.out.println(m.toString());
         }

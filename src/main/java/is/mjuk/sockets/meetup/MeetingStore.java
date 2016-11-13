@@ -25,6 +25,19 @@ public class MeetingStore {
             return;
         }
 
+        boolean new_info = false;
+        for (Long i : other.getIds()) {
+            if (this.id.contains(i)) {
+                continue;
+            } else {
+                new_info = true;
+                break;
+            }
+        }
+        if (!new_info) {
+            return;
+        }
+
         Iterator<Meeting> selfit = this.meeting_points.iterator();
         Iterator<Meeting> otherit = other.getMeetings().iterator();
 
@@ -52,12 +65,33 @@ public class MeetingStore {
             }
         }
 
-        this.id.addAll(other.getIds());
         this.meeting_points = common;
+        this.id.addAll(other.getIds());
     }
 
     public void merge(long id, ArrayList<Meeting> others) {
         merge(new MeetingStore(id, others));
+    }
+
+    public String netformat() {
+        StringBuilder sb = new StringBuilder();
+
+        Set<Long> ids = this.id;
+        ArrayList<Meeting> meetings = this.meeting_points;
+
+        for (Long id : ids) {
+            sb.append(id);
+            sb.append("\n");
+        }
+
+        sb.append("#\n");
+
+        for (Meeting m : meetings) {
+            sb.append(m.toString());
+            sb.append("\n");
+        }
+
+        return sb.toString();
     }
 
     public Set<Long> getIds() {

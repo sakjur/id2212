@@ -40,18 +40,23 @@ public class Scheduler {
         );
 
         ArrayList<Meeting> al = new ArrayList<Meeting>();
+        ArrayList<Meeting> al2 = new ArrayList<Meeting>();
         try {
             al.add(new Meeting("2016-12-24 15:00"));
             al.add(new Meeting("2017-01-18 14:34"));
+            al2.add(new Meeting("2017-01-18 14:34"));
         } catch (ParseException e) {
             return;
         }
         MeetingStore m = new MeetingStore(2, al);
+        MeetingStore m2 = new MeetingStore(3, al2);
 
         MeetupRunner ms = new MeetupRunner(NUMBER_OF_PEERS, FILENAME);
-        ms.add_to_mergequeue(m);
         Thread t = new Thread(ms);
         t.start();
+
+        ms.add_to_mergequeue(m);
+        ms.add_to_mergequeue(m2);
     }
 
     /**
