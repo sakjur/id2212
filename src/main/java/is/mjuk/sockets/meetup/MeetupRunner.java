@@ -4,10 +4,18 @@ import java.io.FileNotFoundException;
 import java.text.ParseException;
 
 public class MeetupRunner implements Runnable {
+    public static enum CallbackType {
+        READY, DONE
+    };
+
     private String filename;
     private int peers;
     private MeetingStore store;
     private LinkedList<MeetingStore> mergequeue = new LinkedList<MeetingStore>();
+    private LinkedList<MeetupCallbackInterface> callbackqueue =
+        new LinkedList<MeetupCallbackInterface>();
+    private LinkedList<MeetupCallbackInterface> callbacklisteners =
+        new LinkedList<MeetupCallbackInterface>();
 
     public MeetupRunner(int peers, String filename) {
         this.filename = filename;
@@ -30,18 +38,34 @@ public class MeetupRunner implements Runnable {
 
         while (true) {
             MeetingStore head = this.mergequeue.poll();
+            MeetupCallbackInterface callback_head = this.callbackqueue.poll();
 
             if (this.store.getIds().size() == peers ||
                     this.store.getMeetings().size() == 0) {
                 System.out.format("[DONE] Found common meeting times for %s participants\n",
                     peers);
                 this.print_meeting_times();
+
+                for (MeetupCallbackInterface listener : callbacklisteners) {
+                    listener.MeetupCallback(CallbackType.DONE);
+                }
+
                 break;
+            }
+
+            if (callback_head != null) {
+                callback_head.MeetupCallback(CallbackType.READY);
+                callbacklisteners.add(callback_head);
+                callback_head = null;
             }
 
             if (head == null) {
                 // TODO: Request from the net stack
-                continue;
+                try {
+                    Thread.sleep(30);
+                } catch (InterruptedException e) {
+                    // pass
+                }
             } else {
                 this.store.merge(head);
             }
@@ -50,6 +74,10 @@ public class MeetupRunner implements Runnable {
 
     public void add_to_mergequeue(MeetingStore m) {
         this.mergequeue.add(m);
+    }
+
+    public void add_to_callbackqueue(MeetupCallbackInterface o) {
+        this.callbackqueue.add(o);
     }
 
     public void print_meeting_times() {

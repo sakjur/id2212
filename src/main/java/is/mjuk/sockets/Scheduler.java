@@ -1,10 +1,7 @@
 package is.mjuk.sockets;
 
 import is.mjuk.sockets.meetup.MeetupRunner;
-import is.mjuk.sockets.meetup.Meeting;
-import is.mjuk.sockets.meetup.MeetingStore;
-import java.util.ArrayList;
-import java.text.ParseException;
+import is.mjuk.sockets.net.PeerCode;
 
 /**
  * Networked meeting scheduling
@@ -12,7 +9,7 @@ import java.text.ParseException;
 public class Scheduler {
 
     public static String IP_ADDRESS = "127.0.0.1";
-    public static String PORT = "7777";
+    public static Integer PORT = 7777;
     public static Integer NUMBER_OF_PEERS = null;
     public static String FILENAME = "./schedule.txt";
 
@@ -31,32 +28,17 @@ public class Scheduler {
            System.exit(1);
         }
 
-        System.out.format("[...] Opening listening socket on %s:%s\n",
-            IP_ADDRESS, PORT
-        );
-
         System.out.format("[...] Finding a common meeting time for %s participants\n",
             NUMBER_OF_PEERS
         );
 
-        ArrayList<Meeting> al = new ArrayList<Meeting>();
-        ArrayList<Meeting> al2 = new ArrayList<Meeting>();
-        try {
-            al.add(new Meeting("2016-12-24 15:00"));
-            al.add(new Meeting("2017-01-18 14:34"));
-            al2.add(new Meeting("2017-01-18 14:34"));
-        } catch (ParseException e) {
-            return;
-        }
-        MeetingStore m = new MeetingStore(2, al);
-        MeetingStore m2 = new MeetingStore(3, al2);
-
         MeetupRunner ms = new MeetupRunner(NUMBER_OF_PEERS, FILENAME);
-        Thread t = new Thread(ms);
-        t.start();
+        Thread t1 = new Thread(ms);
+        t1.start();
 
-        ms.add_to_mergequeue(m);
-        ms.add_to_mergequeue(m2);
+        PeerCode net = new PeerCode(IP_ADDRESS, PORT, ms);
+        Thread t2 = new Thread(net);
+        t2.start();
     }
 
     /**
@@ -84,7 +66,7 @@ public class Scheduler {
                 if (expect == CLI.HOSTNAME) {
                     IP_ADDRESS = arg;
                 } else if (expect == CLI.PORT) {
-                    PORT = arg;
+                    PORT = Integer.parseInt(arg);
                 } else if (expect == CLI.FILENAME) {
                     FILENAME = arg;
                 }
