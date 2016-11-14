@@ -24,9 +24,9 @@ public class MeetupRunner implements Runnable {
 
     public void run() {
         System.out.format("[...] Reading file %s\n", this.filename);
-        FileReader fr;
+        ReadMeetupFile fr;
         try {
-            fr = new FileReader(this.filename);
+            fr = new ReadMeetupFile(this.filename);
         } catch (FileNotFoundException e) {
             System.err.format("[ERR] File not found %s\n", this.filename);
             return;

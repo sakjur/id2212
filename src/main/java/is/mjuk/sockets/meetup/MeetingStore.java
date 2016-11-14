@@ -5,6 +5,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.NoSuchElementException;
 
+/**
+* Stores a list of appointment times and the id:s used to generate the
+* meetings
+*/
 public class MeetingStore {
     private ArrayList<Meeting> meeting_points;
     private Set<Long> id = new TreeSet<Long>();
@@ -20,16 +24,14 @@ public class MeetingStore {
      *
      * @param other The target meeting store to combine with this
      */
-    public void merge(MeetingStore other) {
+    public synchronized void merge(MeetingStore other) {
         if (this.meeting_points.size() == 0) {
             return;
         }
 
         boolean new_info = false;
         for (Long i : other.getIds()) {
-            if (this.id.contains(i)) {
-                continue;
-            } else {
+            if (!this.id.contains(i)) {
                 new_info = true;
                 break;
             }
@@ -38,27 +40,30 @@ public class MeetingStore {
             return;
         }
 
-        Iterator<Meeting> selfit = this.meeting_points.iterator();
-        Iterator<Meeting> otherit = other.getMeetings().iterator();
+        Iterator<Meeting> orig = this.meeting_points.iterator();
+        Iterator<Meeting> target = other.getMeetings().iterator();
 
-        Meeting self_head = selfit.next();
-        Meeting other_head = otherit.next();
+        Meeting self_head = orig.next();
+        Meeting other_head = target.next();
 
         ArrayList<Meeting> common = new ArrayList<Meeting>();
 
+        /* For every iteration, either of the lists in the set (or both) are
+         * strictly stronger, and thus this loop will eventually terminate in
+         * O(N+M) */
         while (true) {
             try {
                 if (self_head.equals(other_head)) {
                     /* Date exists in both lists, store and move on */
                     common.add(self_head);
-                    self_head = selfit.next();
-                    other_head = otherit.next();
+                    self_head = orig.next();
+                    other_head = target.next();
                 } else if (self_head.getDate().before(other_head.getDate())) {
                     /* Drop current head on existing list */
-                    self_head = selfit.next();
+                    self_head = orig.next();
                 } else {
                     /* Drop current head on merging list */
-                    other_head = otherit.next();
+                    other_head = target.next();
                 }
             } catch (NoSuchElementException e) {
                 break;
@@ -69,10 +74,13 @@ public class MeetingStore {
         this.id.addAll(other.getIds());
     }
 
-    public void merge(long id, ArrayList<Meeting> others) {
+    public synchronized void merge(long id, ArrayList<Meeting> others) {
         merge(new MeetingStore(id, others));
     }
 
+    /**
+     * Converts the current meeting store to a network transferable entity
+     */
     public String netformat() {
         StringBuilder sb = new StringBuilder();
 

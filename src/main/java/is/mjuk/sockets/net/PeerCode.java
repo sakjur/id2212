@@ -72,6 +72,7 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
             while (true) {
                 Socket conn = socket.accept();
                 meetup_runner.add_to_mergequeue(m);
+                conn.close();
             }
         } catch (IOException e) {
             // Maybe port was unavailable?

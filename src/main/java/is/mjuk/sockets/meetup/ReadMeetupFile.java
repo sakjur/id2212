@@ -1,30 +1,28 @@
 package is.mjuk.sockets.meetup;
-import java.io.FileInputStream;
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 
-public class FileReader {
+public class ReadMeetupFile {
 
     private ArrayList<Meeting> meeting_points = new ArrayList<Meeting>();
 
-    public FileReader(String filename) throws FileNotFoundException {
-        StringBuilder sb = new StringBuilder();
-        int next_char;
-        FileInputStream in;
+    public ReadMeetupFile(String filename) throws FileNotFoundException {
+        String line;
+        BufferedReader buff;
         try {
-            in = new FileInputStream(filename);
+            buff = new BufferedReader(new FileReader(filename));
 
-            while ((next_char = in.read()) != -1) {
-                sb.append((char) next_char);
-                if (sb.length() == "2016-11-13 13:10\n".length()) {
-                    meeting_points.add(new Meeting(sb.toString()));
-                    sb = new StringBuilder();
+            while ((line = buff.readLine()) != null) {
+                if (line.length() >= "2016-11-13 13:10".length()) {
+                    meeting_points.add(new Meeting(line));
                 }
             }
 
-            in.close();
+            buff.close();
         } catch (FileNotFoundException e) {
             throw e;
         } catch (IOException e) {
