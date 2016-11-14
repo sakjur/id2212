@@ -1,7 +1,5 @@
 package is.mjuk.sockets.net;
 
-import is.mjuk.sockets.meetup.Meeting;
-import is.mjuk.sockets.meetup.MeetingStore;
 import is.mjuk.sockets.meetup.MeetupCallbackInterface;
 import is.mjuk.sockets.meetup.MeetupRunner;
 import java.io.IOException;
@@ -10,8 +8,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.text.ParseException;
-import java.util.ArrayList;
 
 public class PeerCode implements Runnable, MeetupCallbackInterface {
     private boolean ready = false;
@@ -41,6 +37,7 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
                 } catch (IOException e) {
                 }
             }
+            System.out.println("[DONE] Closing listening socket");
             Thread.currentThread().stop();
         }
     }
@@ -54,15 +51,6 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
             }
         }
 
-        ArrayList<Meeting> al = new ArrayList<Meeting>();
-        try {
-            al.add(new Meeting("2016-12-24 15:00"));
-            al.add(new Meeting("2017-01-18 14:34"));
-        } catch (ParseException e) {
-            return;
-        }
-        MeetingStore m = new MeetingStore(2, al);
-
         try {
             this.socket = new ServerSocket(ip.getPort(), 64, ip.getAddress());
             System.out.format("[...] Opening listening socket on %s:%s\n",
@@ -71,8 +59,8 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
 
             while (true) {
                 Socket conn = socket.accept();
-                meetup_runner.add_to_mergequeue(m);
-                conn.close();
+                Thread t = new Thread(new PeerConnection(conn, meetup_runner));
+                t.start();
             }
         } catch (IOException e) {
             // Maybe port was unavailable?
