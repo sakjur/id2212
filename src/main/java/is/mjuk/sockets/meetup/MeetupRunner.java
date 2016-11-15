@@ -1,5 +1,6 @@
 package is.mjuk.sockets.meetup;
 import java.util.LinkedList;
+import java.util.concurrent.ThreadLocalRandom;
 import java.io.FileNotFoundException;
 import java.text.ParseException;
 
@@ -16,6 +17,7 @@ public class MeetupRunner implements Runnable {
         new LinkedList<MeetupCallbackInterface>();
     private LinkedList<MeetupCallbackInterface> callbacklisteners =
         new LinkedList<MeetupCallbackInterface>();
+    private long id;
 
     public MeetupRunner(int peers, String filename) {
         this.filename = filename;
@@ -23,6 +25,7 @@ public class MeetupRunner implements Runnable {
     }
 
     public void run() {
+        this.id = ThreadLocalRandom.current().nextLong();
         System.out.format("[...] Reading file %s\n", this.filename);
         ReadMeetupFile fr;
         try {
@@ -34,7 +37,7 @@ public class MeetupRunner implements Runnable {
         System.out.format("[DONE] Read file %s\n", this.filename);
 
 
-        this.store = new MeetingStore(1, fr.getDatetimes());
+        this.store = new MeetingStore(id, fr.getDatetimes());
 
         while (true) {
             MeetingStore head = this.mergequeue.poll();
@@ -78,6 +81,10 @@ public class MeetupRunner implements Runnable {
 
     public void add_to_callbackqueue(MeetupCallbackInterface o) {
         this.callbackqueue.add(o);
+    }
+
+    public long getId() {
+        return this.id;
     }
 
     public void print_meeting_times() {

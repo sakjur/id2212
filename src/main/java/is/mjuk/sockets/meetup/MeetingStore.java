@@ -14,8 +14,19 @@ public class MeetingStore {
     private ArrayList<Meeting> meeting_points;
     private Set<Long> id = new TreeSet<Long>();
 
+    /**
+     * Create a meeting store from a single id
+     */
     public MeetingStore(long id, ArrayList<Meeting> meeting_points) {
         this.id.add(id);
+        this.meeting_points = meeting_points;
+    }
+
+    /**
+     * Create a meeting store from a existing set of ids
+     */
+    public MeetingStore(Set<Long> id, ArrayList<Meeting> meeting_points) {
+        this.id = id;
         this.meeting_points = meeting_points;
     }
 
@@ -25,7 +36,7 @@ public class MeetingStore {
     public MeetingStore(String[] lines) {
         boolean readtimes = false;
         this.meeting_points = new ArrayList<Meeting>();
-        
+
         for (String line : lines) {
             if (!readtimes) {
                 if (line.charAt(0) == '#') {
@@ -101,12 +112,17 @@ public class MeetingStore {
         this.id.addAll(other.getIds());
     }
 
+    /**
+     * Merge based on a temporary meeting store object
+     */
     public synchronized void merge(long id, ArrayList<Meeting> others) {
         merge(new MeetingStore(id, others));
     }
 
     /**
      * Converts the current meeting store to a network transferable entity
+     * 
+     * @return Network transferable representation of the object
      */
     public String netformat() {
         StringBuilder sb = new StringBuilder();
@@ -129,10 +145,20 @@ public class MeetingStore {
         return sb.toString();
     }
 
+    /**
+     * Return the set of IDs which are applied to the current list of meetings
+     *
+     * @return IDs merged into the MeetingStore
+     */
     public Set<Long> getIds() {
         return this.id;
     }
 
+    /**
+     * Return a list of Meeting with the current available times
+     *
+     * @return List of available times
+     */
     public ArrayList<Meeting> getMeetings() {
         return this.meeting_points;
     }

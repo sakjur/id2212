@@ -25,7 +25,7 @@ public class PeerConnection implements Runnable {
 
     public void run() {
         ArrayList<String> lines = new ArrayList<String>();
-        String[] stringarray = null; 
+        String[] stringarray = null;
 
         try {
             InputStream in = socket.getInputStream();

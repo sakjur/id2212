@@ -14,8 +14,9 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
     private InetSocketAddress ip;
     private ServerSocket socket;
     private MeetupRunner meetup_runner;
+    private String peerlist;
 
-    public PeerCode(String ip, int port, MeetupRunner m) {
+    public PeerCode(String ip, int port, String peerlist, MeetupRunner m) {
         try {
             this.ip = new InetSocketAddress(InetAddress.getByName(ip), port);
         } catch (UnknownHostException e) {
@@ -24,6 +25,7 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
 
         m.add_to_callbackqueue(this);
         this.meetup_runner = m;
+        this.peerlist = peerlist;
     }
 
     public void MeetupCallback(MeetupRunner.CallbackType cb) {
@@ -75,6 +77,6 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
             System.err.println("[ERR] Bailing...");
             System.exit(3);
         }
-        
+
     }
 }

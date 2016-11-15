@@ -12,12 +12,13 @@ public class Scheduler {
     public static Integer PORT = 7777;
     public static Integer NUMBER_OF_PEERS = null;
     public static String FILENAME = "./schedule.txt";
+    public static String PEERLIST = "./peerlist.txt";
 
     /**
      * List of arguments parsable by the command-line interface
      */
     private static enum CLI {
-        ARG, HOSTNAME, PORT, FILENAME
+        ARG, HOSTNAME, PORT, FILENAME, PEERLIST
     }
 
     public static void main(String[] argv) {
@@ -36,7 +37,7 @@ public class Scheduler {
         Thread t1 = new Thread(ms);
         t1.start();
 
-        PeerCode net = new PeerCode(IP_ADDRESS, PORT, ms);
+        PeerCode net = new PeerCode(IP_ADDRESS, PORT, PEERLIST, ms);
         Thread t2 = new Thread(net);
         t2.start();
     }
@@ -56,6 +57,8 @@ public class Scheduler {
                     expect = CLI.PORT;
                 } else if (arg.equals("--file") || arg.equals("-f")) {
                     expect = CLI.FILENAME;
+                } else if (arg.equals("--peers") || arg.equals("--peerlist")) {
+                    expect = CLI.PEERLIST;
                 } else if (NUMBER_OF_PEERS == null) {
                     NUMBER_OF_PEERS = Integer.parseInt(arg);
                 } else {
@@ -69,6 +72,8 @@ public class Scheduler {
                     PORT = Integer.parseInt(arg);
                 } else if (expect == CLI.FILENAME) {
                     FILENAME = arg;
+                } else if (expect == CLI.PEERLIST) {
+                    PEERLIST = arg;
                 }
                 expect = CLI.ARG;
             }
