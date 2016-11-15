@@ -6,6 +6,10 @@ import is.mjuk.sockets.meetup.MeetupRunner;
 import java.net.Socket;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 /**
  * Thread to take care of a single peer-connection
@@ -20,17 +24,32 @@ public class PeerConnection implements Runnable {
     }
 
     public void run() {
-        ArrayList<Meeting> al = new ArrayList<Meeting>();
+        ArrayList<String> lines = new ArrayList<String>();
+        String[] stringarray = null; 
+
         try {
-            al.add(new Meeting("2016-12-24 15:00"));
-            al.add(new Meeting("2017-01-18 14:34"));
-        } catch (ParseException e) {
-            return;
+            InputStream in = socket.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+
+            for (String s = reader.readLine(); s != null; s = reader.readLine()) {
+                lines.add(s);
+
+                if (s.length() == 0) {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            // Ignore
         }
-        MeetingStore m = new MeetingStore(2, al);
+
+        MeetingStore m = new MeetingStore(lines.toArray(new String[lines.size()]));
 
         meetup_runner.add_to_mergequeue(m);
-        socket.close();
+        try {
+            socket.close();
+        } catch (IOException e) {
+            // Ignore
+        }
     }
 }
 

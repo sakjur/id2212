@@ -43,19 +43,19 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
     }
 
     public void run() {
-        while (!this.ready) {
-            try {
-                Thread.sleep(30);
-            } catch (InterruptedException e) {
-                // pass
-            }
-        }
-
         try {
             this.socket = new ServerSocket(ip.getPort(), 64, ip.getAddress());
             System.out.format("[...] Opening listening socket on %s:%s\n",
                 ip.getAddress(), ip.getPort()
             );
+
+            while (!this.ready) {
+                try {
+                    Thread.sleep(30);
+                } catch (InterruptedException e) {
+                    // pass
+                }
+            }
 
             while (true) {
                 Socket conn = socket.accept();

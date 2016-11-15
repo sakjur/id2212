@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.NoSuchElementException;
+import java.text.ParseException;
 
 /**
 * Stores a list of appointment times and the id:s used to generate the
@@ -16,6 +17,32 @@ public class MeetingStore {
     public MeetingStore(long id, ArrayList<Meeting> meeting_points) {
         this.id.add(id);
         this.meeting_points = meeting_points;
+    }
+
+    /**
+     * Read netformat
+     */
+    public MeetingStore(String[] lines) {
+        boolean readtimes = false;
+        this.meeting_points = new ArrayList<Meeting>();
+        
+        for (String line : lines) {
+            if (!readtimes) {
+                if (line.charAt(0) == '#') {
+                    readtimes = true;
+                } else {
+                    this.id.add(Long.parseLong(line));
+                }
+            } else {
+                if (line.length() >= "2016-11-13 13:10".length()) {
+                    try {
+                        meeting_points.add(new Meeting(line));
+                    } catch (ParseException e) {
+                        // Skip
+                    }
+                }
+            }
+        }
     }
 
     /**
