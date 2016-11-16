@@ -36,15 +36,15 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
             this.state = PeerState.READY;
         } else if (cb == MeetupRunner.CallbackType.DONE) {
             if (this.socket != null) {
-                try {
-                    this.state = PeerState.DONE;
-                    this.socket.close();
-                } catch (IOException e) {
-                }
+                this.state = PeerState.DONE;
             }
             System.out.println("[DONE] Closing listening socket");
-            Thread.currentThread().stop();
+            // Thread.currentThread().stop();
         }
+    }
+
+    public PeerState getState() {
+        return this.state;
     }
 
     public void run() {
@@ -63,6 +63,10 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
                     // pass
                 }
             }
+
+            Thread tc = new Thread(new MeetupClient(this, this.peers, this.meetup_runner));
+            tc.start();
+
 
             while (true) {
                 Socket conn = socket.accept();

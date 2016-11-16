@@ -91,6 +91,10 @@ public class MeetupRunner implements Runnable {
         return this.id;
     }
 
+    public String netformat() {
+        return this.store.netformat();
+    }
+
     public void print_meeting_times() {
         if (this.store.getMeetings().size() == 0) {
             System.out.println("No common times found :(");

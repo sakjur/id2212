@@ -6,6 +6,7 @@ import is.mjuk.sockets.meetup.MeetupRunner;
 import java.net.Socket;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,15 +36,20 @@ public class PeerConnection implements Runnable {
 
         try {
             InputStream in = socket.getInputStream();
+            BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
             BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
 
             for (String s = reader.readLine(); s != null; s = reader.readLine()) {
                 if (s.equals("DATA")) {
-                    state = ClientState.DATA;
-                    continue;
+                    out.write(meetup_runner.netformat().getBytes());
+                    out.flush();
+                    break;
                 } else if (s.equals("EMPTY")) {
                     meetup_runner.set_state_empty();
                     break;
+                } else if (s.equals("DONE")) {
+                    state = ClientState.DATA;
+                    continue;
                 }
 
                 if (state == ClientState.DATA) {
