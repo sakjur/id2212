@@ -47,7 +47,6 @@ public class PeerConnection implements Runnable {
                     out.write(meetup_runner.netformat().getBytes());
                     out.flush();
                     continue;
-                } else if (s.equals("DONE") && parent.getState() == PeerState.DONE){
                 } else if (s.equals("DONE")) {
                     state = ClientState.DATA;
                     continue;

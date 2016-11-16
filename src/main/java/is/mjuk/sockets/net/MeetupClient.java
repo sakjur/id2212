@@ -24,7 +24,8 @@ public class MeetupClient implements Runnable {
         ArrayList<String> lines = new ArrayList<String>();
         while(true) {
             try {
-                Socket socket = new Socket(peer.address.getHostName(), peer.address.getPort());
+                Socket socket = new Socket();
+                socket.connect(peer.address, 300);
                 InputStream in = socket.getInputStream();
                 BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
