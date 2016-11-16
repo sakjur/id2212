@@ -18,6 +18,11 @@ public class PeerConnection implements Runnable {
     Socket socket;
     MeetupRunner meetup_runner;
 
+    private enum ClientState {
+        WAITING,
+        DATA 
+    }
+
     public PeerConnection(Socket socket, MeetupRunner meetup_runner) {
         this.socket = socket;
         this.meetup_runner = meetup_runner;
@@ -26,26 +31,35 @@ public class PeerConnection implements Runnable {
     public void run() {
         ArrayList<String> lines = new ArrayList<String>();
         String[] stringarray = null;
+        ClientState state = ClientState.WAITING;
 
         try {
             InputStream in = socket.getInputStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
 
             for (String s = reader.readLine(); s != null; s = reader.readLine()) {
-                lines.add(s);
+                if (s.equals("DATA")) {
+                    state = ClientState.DATA;
+                    continue;
+                } else if (s.equals("EMPTY")) {
+                    meetup_runner.set_state_empty();
+                    break;
+                }
+
+                if (state == ClientState.DATA) {
+                    lines.add(s);
+                }
 
                 if (s.length() == 0) {
                     break;
                 }
             }
-        } catch (IOException e) {
-            // Ignore
-        }
 
-        MeetingStore m = new MeetingStore(lines.toArray(new String[lines.size()]));
+            if (state == ClientState.DATA) {
+                MeetingStore m = new MeetingStore(lines.toArray(new String[lines.size()]));
+                meetup_runner.add_to_mergequeue(m);
+            }
 
-        meetup_runner.add_to_mergequeue(m);
-        try {
             socket.close();
         } catch (IOException e) {
             // Ignore

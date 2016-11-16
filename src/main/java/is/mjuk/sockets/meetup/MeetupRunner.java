@@ -83,6 +83,10 @@ public class MeetupRunner implements Runnable {
         this.callbackqueue.add(o);
     }
 
+    public void set_state_empty() {
+        this.mergequeue.add(new MeetingStore(0));
+    }
+
     public long getId() {
         return this.id;
     }

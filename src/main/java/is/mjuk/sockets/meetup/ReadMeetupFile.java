@@ -24,7 +24,8 @@ public class ReadMeetupFile {
 
             buff.close();
         } catch (FileNotFoundException e) {
-            throw e;
+            System.err.format("[ERR] file not found: %s\n", filename);
+            System.exit(2);
         } catch (IOException e) {
             System.err.format("[ERR] i/o error: %s\n", e);
             System.exit(2);

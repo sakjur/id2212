@@ -8,13 +8,16 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 
 public class PeerCode implements Runnable, MeetupCallbackInterface {
-    private boolean ready = false;
+    private PeerState state = PeerState.WAITING;
     private InetSocketAddress ip;
     private ServerSocket socket;
     private MeetupRunner meetup_runner;
     private String peerlist;
+
+    private ArrayList<HostInfo> peers;
 
     public PeerCode(String ip, int port, String peerlist, MeetupRunner m) {
         try {
@@ -30,11 +33,11 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
 
     public void MeetupCallback(MeetupRunner.CallbackType cb) {
         if (cb == MeetupRunner.CallbackType.READY) {
-            this.ready = true;
+            this.state = PeerState.READY;
         } else if (cb == MeetupRunner.CallbackType.DONE) {
             if (this.socket != null) {
                 try {
-                    this.ready = false;
+                    this.state = PeerState.DONE;
                     this.socket.close();
                 } catch (IOException e) {
                 }
@@ -45,13 +48,15 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
     }
 
     public void run() {
+        this.peers = ReadPeerList.read(this.peerlist);
+
         try {
             this.socket = new ServerSocket(ip.getPort(), 64, ip.getAddress());
             System.out.format("[...] Opening listening socket on %s:%s\n",
                 ip.getAddress(), ip.getPort()
             );
 
-            while (!this.ready) {
+            while (this.state == PeerState.WAITING) {
                 try {
                     Thread.sleep(30);
                 } catch (InterruptedException e) {
@@ -67,7 +72,7 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
         } catch (IOException e) {
             // Maybe port was unavailable?
             // ...bailing out!
-            if (!this.ready) {
+            if (this.state == PeerState.DONE || this.state == PeerState.EMPTY) {
                 System.exit(0);
                 return;
             }

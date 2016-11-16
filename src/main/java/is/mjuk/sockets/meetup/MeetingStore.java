@@ -23,6 +23,14 @@ public class MeetingStore {
     }
 
     /**
+     * Create an empty meeting store
+     */
+    public MeetingStore(long id) {
+        this.id.add(id);
+        this.meeting_points = new ArrayList<Meeting>();
+    }
+
+    /**
      * Create a meeting store from a existing set of ids
      */
     public MeetingStore(Set<Long> id, ArrayList<Meeting> meeting_points) {
@@ -81,8 +89,16 @@ public class MeetingStore {
         Iterator<Meeting> orig = this.meeting_points.iterator();
         Iterator<Meeting> target = other.getMeetings().iterator();
 
-        Meeting self_head = orig.next();
-        Meeting other_head = target.next();
+        Meeting self_head = null;
+        Meeting other_head = null;
+        try {
+            self_head = orig.next();
+            other_head = target.next();
+        } catch (NoSuchElementException e) {
+            this.meeting_points = new ArrayList<Meeting>();
+            this.id.addAll(other.getIds());
+            return;
+        }
 
         ArrayList<Meeting> common = new ArrayList<Meeting>();
 
