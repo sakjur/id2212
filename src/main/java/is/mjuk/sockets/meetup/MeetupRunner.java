@@ -43,6 +43,12 @@ public class MeetupRunner implements Runnable {
             MeetingStore head = this.mergequeue.poll();
             MeetupCallbackInterface callback_head = this.callbackqueue.poll();
 
+            if (callback_head != null) {
+                callback_head.MeetupCallback(CallbackType.READY);
+                callbacklisteners.add(callback_head);
+                callback_head = null;
+            }
+
             if (this.store.getIds().size() == peers ||
                     this.store.getMeetings().size() == 0) {
                 System.out.format("[DONE] Found common meeting times for %s participants\n",
@@ -54,12 +60,6 @@ public class MeetupRunner implements Runnable {
                 }
 
                 break;
-            }
-
-            if (callback_head != null) {
-                callback_head.MeetupCallback(CallbackType.READY);
-                callbacklisteners.add(callback_head);
-                callback_head = null;
             }
 
             if (head == null) {

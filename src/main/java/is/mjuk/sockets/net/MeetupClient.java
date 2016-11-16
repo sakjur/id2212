@@ -45,11 +45,6 @@ public class MeetupClient implements Runnable {
                         meetup_runner.add_to_mergequeue(m);
                     }
 
-                    if (parent.getState() == PeerState.EMPTY) {
-                        out.write("EMPTY\n\n".getBytes());
-                        out.flush();
-                    }
-
                     if (parent.getState() == PeerState.DONE) {
                         out.write("DONE\n".getBytes());
                         out.write(meetup_runner.netformat().getBytes());
@@ -60,6 +55,11 @@ public class MeetupClient implements Runnable {
                 } catch (IOException e) {
                     continue;
                 }
+            }
+            try {
+                Thread.sleep(40);
+            } catch (InterruptedException e) {
+                // Ignore
             }
         }
     }

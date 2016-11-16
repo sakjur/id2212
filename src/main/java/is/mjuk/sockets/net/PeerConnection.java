@@ -16,8 +16,8 @@ import java.io.InputStreamReader;
  * Thread to take care of a single peer-connection
  */
 public class PeerConnection implements Runnable {
-    Socket socket;
-    MeetupRunner meetup_runner;
+    private Socket socket;
+    private MeetupRunner meetup_runner;
 
     private enum ClientState {
         WAITING,

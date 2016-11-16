@@ -4,7 +4,6 @@ public enum PeerState {
     UNKNOWN,
     WAITING,
     READY,
-    EMPTY,
     DONE
 }
 
