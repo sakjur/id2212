@@ -18,13 +18,15 @@ import java.io.InputStreamReader;
 public class PeerConnection implements Runnable {
     private Socket socket;
     private MeetupRunner meetup_runner;
+    private PeerCode parent;
 
     private enum ClientState {
         WAITING,
         DATA 
     }
 
-    public PeerConnection(Socket socket, MeetupRunner meetup_runner) {
+    public PeerConnection(PeerCode parent, Socket socket, MeetupRunner meetup_runner) {
+        this.parent = parent;
         this.socket = socket;
         this.meetup_runner = meetup_runner;
     }
@@ -41,12 +43,11 @@ public class PeerConnection implements Runnable {
 
             for (String s = reader.readLine(); s != null; s = reader.readLine()) {
                 if (s.equals("DATA")) {
+                    state = ClientState.DATA;
                     out.write(meetup_runner.netformat().getBytes());
                     out.flush();
-                    break;
-                } else if (s.equals("EMPTY")) {
-                    meetup_runner.set_state_empty();
-                    break;
+                    continue;
+                } else if (s.equals("DONE") && parent.getState() == PeerState.DONE){
                 } else if (s.equals("DONE")) {
                     state = ClientState.DATA;
                     continue;

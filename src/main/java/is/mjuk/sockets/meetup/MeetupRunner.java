@@ -40,7 +40,6 @@ public class MeetupRunner implements Runnable {
         this.store = new MeetingStore(id, fr.getDatetimes());
 
         while (true) {
-            MeetingStore head = this.mergequeue.poll();
             MeetupCallbackInterface callback_head = this.callbackqueue.poll();
 
             if (callback_head != null) {
@@ -62,15 +61,20 @@ public class MeetupRunner implements Runnable {
                 break;
             }
 
-            if (head == null) {
-                // TODO: Request from the net stack
-                try {
-                    Thread.sleep(30);
-                } catch (InterruptedException e) {
-                    // pass
-                }
-            } else {
-                this.store.merge(head);
+            MeetingStore head = this.mergequeue.poll();
+            this.store.merge(head);
+            try {
+                Thread.sleep(30);
+            } catch (InterruptedException e) {
+                // Do nothing
+            }
+        }
+
+        while(true) {
+            try {
+                Thread.sleep(30);
+            } catch (InterruptedException e) {
+                // Do nothing
             }
         }
     }

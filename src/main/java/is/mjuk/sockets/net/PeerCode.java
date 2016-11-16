@@ -35,9 +35,7 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
         if (cb == MeetupRunner.CallbackType.READY) {
             this.state = PeerState.READY;
         } else if (cb == MeetupRunner.CallbackType.DONE) {
-            if (this.socket != null) {
-                this.state = PeerState.DONE;
-            }
+            this.state = PeerState.DONE;
         }
     }
 
@@ -62,12 +60,14 @@ public class PeerCode implements Runnable, MeetupCallbackInterface {
                 }
             }
 
-            Thread tc = new Thread(new MeetupClient(this, this.peers, this.meetup_runner));
-            tc.start();
+            for (HostInfo peer : this.peers) {
+                Thread tc = new Thread(new MeetupClient(this, peer, this.meetup_runner));
+                tc.start();
+            }
 
             while (true) {
                 Socket conn = socket.accept();
-                Thread t = new Thread(new PeerConnection(conn, meetup_runner));
+                Thread t = new Thread(new PeerConnection(this, conn, meetup_runner));
                 t.start();
             }
         } catch (IOException e) {

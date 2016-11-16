@@ -71,21 +71,14 @@ public class MeetingStore {
      * @param other The target meeting store to combine with this
      */
     public synchronized void merge(MeetingStore other) {
+        if (other == null) {
+            return;
+        }
+
         if (this.meeting_points.size() == 0) {
             return;
         }
-
-        boolean new_info = false;
-        for (Long i : other.getIds()) {
-            if (!this.id.contains(i)) {
-                new_info = true;
-                break;
-            }
-        }
-        if (!new_info) {
-            return;
-        }
-
+    
         Iterator<Meeting> orig = this.meeting_points.iterator();
         Iterator<Meeting> target = other.getMeetings().iterator();
 
