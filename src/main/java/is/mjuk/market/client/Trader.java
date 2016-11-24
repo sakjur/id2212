@@ -55,28 +55,6 @@ public class Trader {
             while (true) {
                 System.out.format("%s > ", user.getName());
                 line = in.readLine();
-            /*marketplace.addItem("Counter", 2500, client);
-            marketplace.addItem("Counter", 2500, client);
-            for (String item : marketplace.listItems()) {
-                System.out.println(item);
-            }
-
-            for (Item item : marketplace.getItems("Counter")) {
-                System.out.format("%s %s\n", item.getName(), item.getPrice());
-            }
-            
-            Item item = marketplace.getItem("Counter", 2500);
-            if (item != null)
-                System.out.format("%s %s\n", item.getName(), item.getPrice());
-            
-
-            if (marketplace.deleteItem("Counter", 2500)) {
-                System.out.println("Deleted object");
-            }
-
-            for (String item : marketplace.listItems()) {
-                System.out.println(item);
-            }*/
                 this.parser(line);
             }
         } catch (RemoteException e) {
