@@ -19,11 +19,17 @@ import is.mjuk.market.common.Item;
 import is.mjuk.market.common.Market;
 import is.mjuk.market.common.MarketObserver;
 
+import se.kth.id2212.ex2.bankrmi.Bank;
+import se.kth.id2212.ex2.bankrmi.Account;
+import se.kth.id2212.ex2.bankrmi.RejectedException;
+
 public class Trader {
     private Market marketplace;
     private Client user;
     private String name;
     private MarketObserver observer;
+    private Bank bank;
+    private Account bankAcc;
 
     public static void main(String[] argv) {
         Trader t = new Trader();
@@ -33,6 +39,7 @@ public class Trader {
     public Trader() {
         try {
             marketplace = (Market) Naming.lookup("market");
+            bank = (Bank) Naming.lookup("marketbank");
             observer = new MarketObserverImpl();
         } catch (RemoteException e) {
             System.err.println("Remote Exception");
@@ -54,6 +61,16 @@ public class Trader {
             user = marketplace.getClient(line);
             if (user == null) {
                 user = marketplace.addClient(line);
+            }
+
+            bankAcc = bank.getAccount(user.getName());
+            if (bankAcc == null) {
+                try {
+                    bankAcc = bank.newAccount(user.getName());
+                } catch (RejectedException e) {
+                    System.err.println("Could not create new bank account");
+                    System.exit(-3);
+                }
             }
             
             marketplace.registerObserver(this.user, this.observer);
@@ -96,6 +113,7 @@ public class Trader {
                 if (!deleted) {
                     System.err.println("Failed deleting account...");
                 }
+                bank.deleteAccount(user.getName());
             }
             marketplace.deleteObserver(user, observer);
             System.out.println("Logging out...");
@@ -119,7 +137,7 @@ public class Trader {
             if (parts[0].equals("sell")) {
                 marketplace.addItem(name, price, user);
             } else if (parts[0].equals("buy")) {
-                Item bought = marketplace.buyItem(name, price);
+                Item bought = marketplace.buyItem(name, price, user);
                 if (bought != null) {
                     System.out.format("Bought a %s for %s\n", name, price);
                 } else {

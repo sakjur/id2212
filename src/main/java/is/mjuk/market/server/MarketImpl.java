@@ -13,6 +13,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import se.kth.id2212.ex2.bankrmi.Bank;
+import se.kth.id2212.ex2.bankrmi.Account;
+import se.kth.id2212.ex2.bankrmi.RejectedException;
+
 public class MarketImpl extends UnicastRemoteObject implements Market {
     private class Subscribe {
         public int price;
@@ -29,8 +33,14 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
     private Map<String, ArrayList<ItemImpl>> items = new HashMap<>();
     private Map<String, ArrayList<Subscribe>> subs = new HashMap<>();
 
-    public MarketImpl() throws RemoteException {
+    private Bank bank;
+
+    private MarketImpl() throws RemoteException {
+    }
+
+    public MarketImpl(Bank bank) throws RemoteException {
         super();
+        this.bank = bank;
     }
 
     @Override
@@ -58,16 +68,18 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         Collections.sort(list, item);
 
         ArrayList<Subscribe> subscribers = this.subs.get(name);
-        ArrayList<Subscribe> tmpSub = new ArrayList<Subscribe>();
-        for (Subscribe s : subscribers) {
-            if (s.price >= price) {
-                MarketObserver observer = this.observers.get(s.client.getName());
-                observer.notifySub(item);
-            } else {
-                tmpSub.add(s);
+        if (subscribers != null) {
+            ArrayList<Subscribe> tmpSub = new ArrayList<Subscribe>();
+            for (Subscribe s : subscribers) {
+                if (s.price >= price) {
+                    MarketObserver observer = this.observers.get(s.client.getName());
+                    observer.notifySub(item);
+                } else {
+                    tmpSub.add(s);
+                }
             }
+            this.subs.put(name, tmpSub);
         }
-        this.subs.put(name, tmpSub);
 
         return (Item) item;
     }
@@ -83,8 +95,7 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         }
     }
 
-    @Override
-    public Item getItem(String name, int price) throws RemoteException {
+    private ItemImpl internalGetItem(String name, int price) throws RemoteException {
         ArrayList<ItemImpl> list = this.items.get(name);
         if (list == null || list.size() == 0) {
             return null;
@@ -94,8 +105,13 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         if (pos < 0) {
             return null;
         } else {
-            return (Item) list.get(pos);
+            return list.get(pos);
         }
+    }
+
+    @Override
+    public Item getItem(String name, int price) throws RemoteException {
+        return (Item) internalGetItem(name, price);
     }
 
     private synchronized ItemImpl internalDeleteItem(String name, int price)
@@ -122,13 +138,25 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
     }
 
     @Override
-    public Item buyItem(String name, int price) throws RemoteException {
-        ItemImpl result = this.internalDeleteItem(name, price);
+    public synchronized Item buyItem(String name, int price, Client buyer)
+    throws RemoteException {
+        ItemImpl result = this.internalGetItem(name, price);
         if (result == null) {
             return null;
         } 
         
         Client client = result.getOwner();
+        Account withdrawAcc = buyer.getAccount();
+        Account depositAcc = client.getAccount();
+        try {
+            withdrawAcc.withdraw(price);
+            depositAcc.deposit(price);
+        } catch (RejectedException e) {
+            // Don't sell the item
+            return null;
+        }
+        result = this.internalDeleteItem(name, price);
+
         MarketObserver notify = this.observers.get(client.getName());
         if (notify != null) {
             notify.notifySold(result);
@@ -142,7 +170,7 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         if ((client = this.clients.get(name)) != null) {
             System.err.println("User already exists");
         }  else {
-            client = new ClientImpl(name);
+            client = new ClientImpl(name, bank.getAccount(name));
             this.clients.put(name, client);
         }
         return client;

@@ -10,7 +10,7 @@ public interface Market extends Remote {
     public Item getItem(String name, int price) throws RemoteException;
     public Item[] getItems(String name) throws RemoteException;
     public Item deleteItem(String name, int price) throws RemoteException;
-    public Item buyItem(String name, int price) throws RemoteException;
+    public Item buyItem(String name, int price, Client buyer) throws RemoteException;
 
     public Client addClient(String name) throws RemoteException;
     public Client getClient(String name) throws RemoteException;
