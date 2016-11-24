@@ -81,7 +81,14 @@ public class Trader {
             System.out.println("sell <item> <price> -- SELL AN ITEM");
             System.out.println("buy  <item> <price> -- BUY AN ITEM");
             System.out.println("find <item> -- LIST OCCURRENCES OF AN ITEM");
-        } else if (parts[0].equals("logout")) {
+            System.out.println("unregister -- LOGOUT AND DELETE ACCOUNT");
+        } else if (parts[0].equals("logout") || parts[0].equals("unregister")) {
+            if (parts[0].equals("unregister")) {
+                boolean deleted = marketplace.deleteClient(user);
+                if (!deleted) {
+                    System.err.println("Failed deleting account...");
+                }
+            }
             System.out.println("Logging out...");
             System.exit(0);
         } else if (parts[0].equals("list")) {

@@ -27,7 +27,7 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
 
     @Override
     public String[] listItems() throws RemoteException {
-        return items.keySet().toArray(new String[0]); 
+        return items.keySet().toArray(new String[0]);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         if (list.size() == 0) {
             this.items.remove(name);
         }
-        return rv; 
+        return rv;
     }
 
     @Override
@@ -109,6 +109,7 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
     }
     @Override
     public boolean deleteClient(Client client) throws RemoteException {
+        System.out.format("Deleting user %s\n", client.getName());
         return (this.clients.remove(client.getName()) != null);
     }
 }
