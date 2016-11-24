@@ -44,6 +44,10 @@ public class ItemImpl extends UnicastRemoteObject implements Item, Comparator<It
         return false;
     }
 
+    public Client getOwner() {
+        return this.client;
+    }
+
     @Override
     public String getName() throws RemoteException {
         return this.name;

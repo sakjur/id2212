@@ -1,6 +1,7 @@
 package is.mjuk.market.server;
 
 import is.mjuk.market.common.Market;
+import is.mjuk.market.common.MarketObserver;
 import is.mjuk.market.common.Client;
 import is.mjuk.market.common.Item;
 
@@ -13,8 +14,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MarketImpl extends UnicastRemoteObject implements Market {
+    private class Subscribe {
+        public int price;
+        public Client client;
+
+        public Subscribe(int price, Client client) {
+            this.price = price;
+            this.client = client;
+        }
+    }
+
     private Map<String, Client> clients = new HashMap<>();
+    private Map<String, MarketObserver> observers = new HashMap<>();
     private Map<String, ArrayList<ItemImpl>> items = new HashMap<>();
+    private Map<String, ArrayList<Subscribe>> subs = new HashMap<>();
 
     public MarketImpl() throws RemoteException {
         super();
@@ -43,6 +56,18 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
 
         list.add(item);
         Collections.sort(list, item);
+
+        ArrayList<Subscribe> subscribers = this.subs.get(name);
+        ArrayList<Subscribe> tmpSub = new ArrayList<Subscribe>();
+        for (Subscribe s : subscribers) {
+            if (s.price >= price) {
+                MarketObserver observer = this.observers.get(s.client.getName());
+                observer.notifySub(item);
+            } else {
+                tmpSub.add(s);
+            }
+        }
+        this.subs.put(name, tmpSub);
 
         return (Item) item;
     }
@@ -73,22 +98,42 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         }
     }
 
-    @Override
-    public synchronized boolean deleteItem(String name, int price) throws RemoteException {
+    private synchronized ItemImpl internalDeleteItem(String name, int price)
+        throws RemoteException {
         ArrayList<ItemImpl> list = this.items.get(name);
         if (list == null) {
-            return false;
+            return null;
         }
         ItemImpl tmpItem = new ItemImpl(name, price);
         int pos = Collections.binarySearch(list, tmpItem, tmpItem);
         if (pos < 0) {
-            return false;
+            return null;
         }
-        boolean rv = (list.remove(pos) != null);
+        ItemImpl rv = list.remove(pos);
         if (list.size() == 0) {
             this.items.remove(name);
         }
         return rv;
+    }
+
+    @Override
+    public synchronized Item deleteItem(String name, int price) throws RemoteException {
+        return (Item) this.internalDeleteItem(name, price);
+    }
+
+    @Override
+    public Item buyItem(String name, int price) throws RemoteException {
+        ItemImpl result = this.internalDeleteItem(name, price);
+        if (result == null) {
+            return null;
+        } 
+        
+        Client client = result.getOwner();
+        MarketObserver notify = this.observers.get(client.getName());
+        if (notify != null) {
+            notify.notifySold(result);
+        }
+        return (Item) result;
     }
 
     @Override
@@ -111,5 +156,50 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
     public boolean deleteClient(Client client) throws RemoteException {
         System.out.format("Deleting user %s\n", client.getName());
         return (this.clients.remove(client.getName()) != null);
+    }
+
+    @Override
+    public void registerObserver(Client client, MarketObserver observer)
+        throws RemoteException {
+        this.observers.put(client.getName(), observer);
+    }
+
+    @Override
+    public boolean deleteObserver(Client client, MarketObserver observer)
+        throws RemoteException {
+        MarketObserver tmp = this.observers.get(client.getName());
+        if (tmp == null) {
+            return false;
+        }
+        if (observer.getId() != tmp.getId()) {
+            return false;
+        }
+        return (this.observers.remove(client.getName()) != null);
+    }
+
+    @Override
+    public void addSub(String name, int price, Client client) throws RemoteException {
+        ArrayList<Subscribe> list = this.subs.get(name);
+        if (list == null) {
+            System.out.println("Creating new product");
+            list = new ArrayList<Subscribe>();
+            this.subs.put(name, list);
+        }
+
+        list.add(new Subscribe(price, client));
+    }
+
+    @Override
+    public void deleteSub(String name, Client client) throws RemoteException {
+        ArrayList<Subscribe> list = this.subs.get(name);
+        if (list == null) {
+            return;  
+        }
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).client.getName() == client.getName()) {
+                list.remove(i);
+                return;
+            }
+        }
     }
 }

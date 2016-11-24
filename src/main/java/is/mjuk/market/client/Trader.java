@@ -4,6 +4,7 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.NotBoundException;
+import java.rmi.server.UnicastRemoteObject;
 
 import java.net.MalformedURLException;
 
@@ -11,14 +12,18 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import is.mjuk.market.common.Client;
 import is.mjuk.market.common.Item;
 import is.mjuk.market.common.Market;
+import is.mjuk.market.common.MarketObserver;
 
 public class Trader {
     private Market marketplace;
     private Client user;
     private String name;
+    private MarketObserver observer;
 
     public static void main(String[] argv) {
         Trader t = new Trader();
@@ -28,6 +33,7 @@ public class Trader {
     public Trader() {
         try {
             marketplace = (Market) Naming.lookup("market");
+            observer = new MarketObserverImpl();
         } catch (RemoteException e) {
             System.err.println("Remote Exception");
         } catch (NotBoundException e) {
@@ -49,7 +55,8 @@ public class Trader {
             if (user == null) {
                 user = marketplace.addClient(line);
             }
-
+            
+            marketplace.registerObserver(this.user, this.observer);
             System.out.format("Logged in as %s\n", user.getName());
 
             while (true) {
@@ -80,6 +87,7 @@ public class Trader {
             System.out.println("list -- LIST ALL ITEMS");
             System.out.println("sell <item> <price> -- SELL AN ITEM");
             System.out.println("buy  <item> <price> -- BUY AN ITEM");
+            System.out.println("sub <item> <price> -- SUBSCRIBE TO AN ITEM");
             System.out.println("find <item> -- LIST OCCURRENCES OF AN ITEM");
             System.out.println("unregister -- LOGOUT AND DELETE ACCOUNT");
         } else if (parts[0].equals("logout") || parts[0].equals("unregister")) {
@@ -89,6 +97,7 @@ public class Trader {
                     System.err.println("Failed deleting account...");
                 }
             }
+            marketplace.deleteObserver(user, observer);
             System.out.println("Logging out...");
             System.exit(0);
         } else if (parts[0].equals("list")) {
@@ -99,7 +108,8 @@ public class Trader {
             for (String item : list) {
                 System.out.println(item);
             }
-        } else if (parts[0].equals("sell") || parts[0].equals("buy")) {
+        } else if (parts[0].equals("sell") || parts[0].equals("buy")
+                || parts[0].equals("sub")) {
             if (parts.length < 3) {
                 System.out.format("Usage: %s <item> <price>\n", parts[0]);
                 return;
@@ -108,13 +118,15 @@ public class Trader {
             int price = Integer.parseInt(parts[2]);
             if (parts[0].equals("sell")) {
                 marketplace.addItem(name, price, user);
-            } else {
-                boolean bought = marketplace.deleteItem(name, price);
-                if (bought) {
+            } else if (parts[0].equals("buy")) {
+                Item bought = marketplace.buyItem(name, price);
+                if (bought != null) {
                     System.out.format("Bought a %s for %s\n", name, price);
                 } else {
                     System.out.format("Could not buy a %s for %s\n", name, price);
                 }
+            } else {
+                marketplace.addSub(name, price, user);
             }
         } else if (parts[0].equals("find")) {
             if (parts.length < 2) {
@@ -131,4 +143,38 @@ public class Trader {
         }
     }
 
+    private static class MarketObserverImpl extends UnicastRemoteObject
+            implements MarketObserver {
+
+        private long id;
+
+        public MarketObserverImpl() throws RemoteException {
+            this.id = ThreadLocalRandom.current().nextLong();
+        }
+
+        @Override
+        public void notifySold(Item item) {
+            try {
+                System.out.format("\n¤ Sold %s for %s\n", item.getName(), item.getPrice());
+            } catch(RemoteException e) {
+                // Wat?
+            }
+        }
+
+        @Override
+        public void notifySub(Item item) {
+            try {
+                System.out.format("\n¤ %s now available for %s\n",
+                    item.getName(),
+                    item.getPrice());
+            } catch(RemoteException e) {
+                // Wat?
+            }
+        }
+
+        @Override
+        public long getId() {
+            return this.id;
+        }
+    }
 }
