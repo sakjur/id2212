@@ -77,6 +77,7 @@ public class Trader {
             for (String item : marketplace.listItems()) {
                 System.out.println(item);
             }*/
+                this.parser(line);
             }
         } catch (RemoteException e) {
             System.exit(-1);
@@ -86,7 +87,63 @@ public class Trader {
         }
     }
 
-    public void parser(String line) {
+    public void parser(String line) throws RemoteException {
+        String[] parts = line.split(" ");
+
+        if (parts.length == 0) {
+            return;
+        }
+
+        if (parts[0].equals("help")) {
+            System.out.println("ID2212 TRADER BY EMILTU AT KTH");
+            System.out.println("            MANUAL            ");
+            System.out.println("help -- DISPLAY MANUAL");
+            System.out.println("logout -- EXIT");
+            System.out.println("list -- LIST ALL ITEMS");
+            System.out.println("sell <item> <price> -- SELL AN ITEM");
+            System.out.println("buy  <item> <price> -- BUY AN ITEM");
+            System.out.println("find <item> -- LIST OCCURRENCES OF AN ITEM");
+        } else if (parts[0].equals("logout")) {
+            System.out.println("Logging out...");
+            System.exit(0);
+        } else if (parts[0].equals("list")) {
+            String[] list = marketplace.listItems();
+            if (list.length == 0) {
+                System.out.println("No items listed. Maybe list an item?");
+            }
+            for (String item : list) {
+                System.out.println(item);
+            }
+        } else if (parts[0].equals("sell") || parts[0].equals("buy")) {
+            if (parts.length < 3) {
+                System.out.format("Usage: %s <item> <price>\n", parts[0]);
+                return;
+            }
+            String name = parts[1];
+            int price = Integer.parseInt(parts[2]);
+            if (parts[0].equals("sell")) {
+                marketplace.addItem(name, price, user);
+            } else {
+                boolean bought = marketplace.deleteItem(name, price);
+                if (bought) {
+                    System.out.format("Bought a %s for %s\n", name, price);
+                } else {
+                    System.out.format("Could not buy a %s for %s\n", name, price);
+                }
+            }
+        } else if (parts[0].equals("find")) {
+            if (parts.length < 2) {
+                System.out.println("Usage: find <item>");
+                return;
+            }
+            Item[] items = marketplace.getItems(parts[1]);
+            if (items == null) {
+                System.out.format("No %s listed\n", parts[1]);
+            }
+            for (Item item : items) {
+                System.out.format("%s %s\n", item.getName(), item.getPrice());
+            }
+        }
     }
 
 }
