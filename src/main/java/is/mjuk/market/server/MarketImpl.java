@@ -146,8 +146,18 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         } 
         
         Client client = result.getOwner();
+        if (client == null) {
+            System.err.println("Seller disappeared?");
+            this.internalDeleteItem(name, price);
+            return null;
+        }
         Account withdrawAcc = buyer.getAccount();
         Account depositAcc = client.getAccount();
+        if (depositAcc == null) {
+            System.err.println("Seller disappeared?");
+            this.internalDeleteItem(name, price);
+            return null;
+        }
         try {
             withdrawAcc.withdraw(price);
             depositAcc.deposit(price);
@@ -170,6 +180,7 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         if ((client = this.clients.get(name)) != null) {
             System.err.println("User already exists");
         }  else {
+            System.out.format("Adding user %s\n", name);
             client = new ClientImpl(name, bank.getAccount(name));
             this.clients.put(name, client);
         }
@@ -180,10 +191,11 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
     public Client getClient(String name) throws RemoteException {
         return this.clients.get(name);
     }
+
     @Override
-    public boolean deleteClient(Client client) throws RemoteException {
+    public Client deleteClient(Client client) throws RemoteException {
         System.out.format("Deleting user %s\n", client.getName());
-        return (this.clients.remove(client.getName()) != null);
+        return this.clients.replace(client.getName(), null);
     }
 
     @Override

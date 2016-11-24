@@ -107,13 +107,13 @@ public class Trader {
             System.out.println("sub <item> <price> -- SUBSCRIBE TO AN ITEM");
             System.out.println("find <item> -- LIST OCCURRENCES OF AN ITEM");
             System.out.println("unregister -- LOGOUT AND DELETE ACCOUNT");
+            System.out.println("balance -- GET BANK BALANCE");
         } else if (parts[0].equals("logout") || parts[0].equals("unregister")) {
             if (parts[0].equals("unregister")) {
-                boolean deleted = marketplace.deleteClient(user);
-                if (!deleted) {
+                Client deleted = marketplace.deleteClient(user);
+                if (deleted == null) {
                     System.err.println("Failed deleting account...");
                 }
-                bank.deleteAccount(user.getName());
             }
             marketplace.deleteObserver(user, observer);
             System.out.println("Logging out...");
@@ -158,6 +158,8 @@ public class Trader {
             for (Item item : items) {
                 System.out.format("%s %s\n", item.getName(), item.getPrice());
             }
+        } else if (parts[0].equals("balance")) {
+            System.out.format("Your balance is %.2f\n", bankAcc.getBalance());
         }
     }
 
