@@ -181,7 +181,15 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
             System.err.println("User already exists");
         }  else {
             System.out.format("Adding user %s\n", name);
-            client = new ClientImpl(name, bank.getAccount(name));
+            Account acc = null;
+            while (acc == null) {
+                acc = bank.getAccount(name);
+                try {
+                    acc = bank.newAccount(name);
+                } catch (RejectedException e) {
+                }
+            }
+            client = new ClientImpl(name, acc);
             this.clients.put(name, client);
         }
         return client;
