@@ -19,6 +19,7 @@ public interface Market extends Remote {
         throws RemoteException;
     public boolean deleteObserver(String session, MarketObserver observer)
         throws RemoteException;
+    public void deleteSession(String session) throws RemoteException;
 
     public void addSub(String session, String item, int price) throws RemoteException; 
     public void deleteSub(String session, String item) throws RemoteException; 

@@ -378,6 +378,9 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
     public boolean deleteObserver(String session, MarketObserver observer)
         throws RemoteException {
         Client client = this.getClient(session);
+        if (client == null) {
+            return false;
+        }
         MarketObserver tmp = this.observers.get(client.getName());
         if (tmp == null) {
             return false;
@@ -386,6 +389,11 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
             return false;
         }
         return (this.observers.remove(client.getName()) != null);
+    }
+
+    @Override
+    public void deleteSession(String session) throws RemoteException {
+        this.sessions.remove(session);
     }
 
     @Override

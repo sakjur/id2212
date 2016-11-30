@@ -142,6 +142,7 @@ public class Trader {
                 }
             }
             marketplace.deleteObserver(session, observer);
+            marketplace.deleteSession(session);
             System.out.println("Logging out...");
             System.exit(0);
         } else if (parts[0].equals("list")) {
