@@ -5,8 +5,8 @@ import java.rmi.RemoteException;
 
 import se.kth.id2212.ex2.bankrmi.Account;
 
-public interface Client extends Remote {
+public interface Session extends Remote {
+    public String getSessionKey() throws RemoteException;
     public String getName() throws RemoteException;
-    public Account getAccount() throws RemoteException;
 }
 

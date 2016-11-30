@@ -30,6 +30,7 @@ public class Trader {
     private MarketObserver observer;
     private Bank bank;
     private Account bankAcc;
+    private String session;
 
     public static void main(String[] argv) {
         Trader t = new Trader();
@@ -55,16 +56,37 @@ public class Trader {
         String line;
 
         try {
+            System.out.print("login or register?");
+            line = in.readLine();
+            boolean register = false;
+            if (line.charAt(0) == 'r') {
+                register = true;
+                System.out.println("Register new user");
+            } else {
+                System.out.println("Login");
+            }
 
             System.out.print("Username > ");
             line = in.readLine().split(" ")[0];
-            user = marketplace.getClient(line);
-            if (user == null) {
-                user = marketplace.addClient(line);
+            String username = line;
+            System.out.print("Password > ");
+            line = in.readLine().split(" ")[0];
+            String password = line;
+            if (!register) {
+                session = marketplace.login(username, password);
+            } else {
+                session = marketplace.register(username, password);
             }
 
+            if (session == null) {
+                System.out.println("Could not login");
+                System.exit(0);
+            }
+
+            user = marketplace.getClient(session);
             if (user == null) {
-                return;
+                System.out.println("Could not login");
+                System.exit(0);
             }
 
             bankAcc = bank.getAccount(user.getName());
@@ -77,7 +99,7 @@ public class Trader {
                 }
             }
             
-            marketplace.registerObserver(this.user, this.observer);
+            marketplace.registerObserver(this.session, this.observer);
             System.out.format("Logged in as %s\n", user.getName());
 
             while (true) {
@@ -114,12 +136,12 @@ public class Trader {
             System.out.println("balance -- GET BANK BALANCE");
         } else if (parts[0].equals("logout") || parts[0].equals("unregister")) {
             if (parts[0].equals("unregister")) {
-                Client deleted = marketplace.deleteClient(user);
+                Client deleted = marketplace.deleteClient(session);
                 if (deleted == null) {
                     System.err.println("Failed deleting account...");
                 }
             }
-            marketplace.deleteObserver(user, observer);
+            marketplace.deleteObserver(session, observer);
             System.out.println("Logging out...");
             System.exit(0);
         } else if (parts[0].equals("list")) {
@@ -139,16 +161,16 @@ public class Trader {
             String name = parts[1];
             int price = Integer.parseInt(parts[2]);
             if (parts[0].equals("sell")) {
-                marketplace.addItem(name, price, user);
+                marketplace.addItem(session, name, price);
             } else if (parts[0].equals("buy")) {
-                Item bought = marketplace.buyItem(name, price, user);
+                Item bought = marketplace.buyItem(this.session, name, price);
                 if (bought != null) {
                     System.out.format("Bought a %s for %s\n", name, price);
                 } else {
                     System.out.format("Could not buy a %s for %s\n", name, price);
                 }
             } else {
-                marketplace.addSub(name, price, user);
+                marketplace.addSub(this.session, name, price);
             }
         } else if (parts[0].equals("find")) {
             if (parts.length < 2) {
