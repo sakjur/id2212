@@ -17,6 +17,12 @@ import se.kth.id2212.ex2.bankrmi.Bank;
 import se.kth.id2212.ex2.bankrmi.Account;
 import se.kth.id2212.ex2.bankrmi.RejectedException;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
 public class MarketImpl extends UnicastRemoteObject implements Market {
     private class Subscribe {
         public int price;
@@ -28,44 +34,69 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         }
     }
 
-    private Map<String, Client> clients = new HashMap<>();
     private Map<String, MarketObserver> observers = new HashMap<>();
-    private Map<String, ArrayList<ItemImpl>> items = new HashMap<>();
     private Map<String, ArrayList<Subscribe>> subs = new HashMap<>();
 
     private Bank bank;
 
+    private Connection conn = null;
+
     private MarketImpl() throws RemoteException {
     }
 
+    private Connection getConnection() {
+        if (conn == null) {
+            try {
+                conn = DriverManager.getConnection("jdbc:mysql://localhost/market?user=root");
+            } catch (SQLException e) {
+                conn = null;
+            }
+        }
+        return conn;
+    };
+
     public MarketImpl(Bank bank) throws RemoteException {
         super();
+        try {
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+        } catch (Exception e) {
+            System.err.println(e);
+            System.exit(-4);
+        }
         this.bank = bank;
     }
 
     @Override
-    public int countItems() throws RemoteException {
-        return items.size();
-    }
-
-    @Override
     public String[] listItems() throws RemoteException {
-        return items.keySet().toArray(new String[0]);
+        String select = "SELECT name FROM items WHERE available = true GROUP BY name";
+        ArrayList<String> list = new ArrayList<String>();
+        try {
+            PreparedStatement stmt = conn.prepareStatement(select);
+            ResultSet rs = stmt.executeQuery();
+            while(rs.next()) {
+                list.add(rs.getString("name"));
+            }
+
+            String rv[] = new String[list.size()];
+            if (list == null) {
+                return new String[0];
+            } else {
+                return list.toArray(rv);
+            }
+        } catch (SQLException e) {
+            System.err.println(e);
+        }
+        return new String[0];
     }
 
     @Override
     public Item addItem(String name, int price, Client owner) throws RemoteException {
         ItemImpl item;
         item = new ItemImpl(name, price, owner);
-        ArrayList<ItemImpl> list = this.items.get(name);
-        if (list == null) {
-            System.out.println("Creating new product");
-            list = new ArrayList<ItemImpl>();
-            this.items.put(name, list);
-        }
 
-        list.add(item);
-        Collections.sort(list, item);
+        if (!item.store(this.getConnection())) {
+            return null;
+        }
 
         ArrayList<Subscribe> subscribers = this.subs.get(name);
         if (subscribers != null) {
@@ -86,26 +117,47 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
 
     @Override
     public Item[] getItems(String name) throws RemoteException {
-        ArrayList<ItemImpl> list = this.items.get(name);
-        Item i[] = new Item[list.size()];
-        if (list == null) {
+        ArrayList<Item> list = new ArrayList<Item>();
+        String select = "SELECT name, price FROM items "
+            + "WHERE name = ? AND available = true";
+        try {
+            PreparedStatement stmt = conn.prepareStatement(select);
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+            while(rs.next()) {
+                list.add((Item) new ItemImpl(rs.getString("name"),
+                                             rs.getInt("price")));
+            }
+
+            Item i[] = new Item[list.size()];
+            if (list == null) {
+                return null;
+            } else {
+                return list.toArray(i);
+            }
+        } catch (SQLException e) {
+            System.err.println(e);
             return null;
-        } else {
-            return list.toArray(i);
         }
     }
 
     private ItemImpl internalGetItem(String name, int price) throws RemoteException {
-        ArrayList<ItemImpl> list = this.items.get(name);
-        if (list == null || list.size() == 0) {
+        String select = "SELECT name, price, owner FROM items "
+            + "WHERE name = ? AND price = ? AND available = true";
+        try {
+            PreparedStatement stmt = conn.prepareStatement(select);
+            stmt.setString(1, name);
+            stmt.setInt(2, price);
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            if (name.equals(rs.getString("name")) && price == rs.getInt("price")) {
+                return new ItemImpl(name, price, this.getClient(rs.getString("owner")));
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            System.err.println(e);
             return null;
-        }
-        ItemImpl tmpItem = new ItemImpl(name, price);
-        int pos = Collections.binarySearch(list, tmpItem, tmpItem);
-        if (pos < 0) {
-            return null;
-        } else {
-            return list.get(pos);
         }
     }
 
@@ -116,20 +168,25 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
 
     private synchronized ItemImpl internalDeleteItem(String name, int price)
         throws RemoteException {
-        ArrayList<ItemImpl> list = this.items.get(name);
-        if (list == null) {
-            return null;
+        String select = "SELECT id, owner FROM items "
+            + "WHERE available = true AND name = ? AND price = ? LIMIT 1";
+        String update = "UPDATE items SET available = false WHERE id = ?";
+        try {
+            PreparedStatement stmt = conn.prepareStatement(select);
+            PreparedStatement updt = conn.prepareStatement(update);
+            stmt.setString(1, name);
+            stmt.setInt(2, price);
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            String owner = rs.getString("owner");
+            updt.setInt(1, rs.getInt("id"));
+            updt.executeUpdate();
+
+            return new ItemImpl(name, price, this.getClient(owner));
+        } catch (SQLException e) {
+            System.err.println(e);
         }
-        ItemImpl tmpItem = new ItemImpl(name, price);
-        int pos = Collections.binarySearch(list, tmpItem, tmpItem);
-        if (pos < 0) {
-            return null;
-        }
-        ItemImpl rv = list.remove(pos);
-        if (list.size() == 0) {
-            this.items.remove(name);
-        }
-        return rv;
+        return null;
     }
 
     @Override
@@ -171,13 +228,31 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
         if (notify != null) {
             notify.notifySold(result);
         }
+
+        try {
+            Connection conn = this.getConnection();
+            PreparedStatement stmt;
+            String increaseBuyer = "UPDATE users SET bought = bought + 1 "
+                + "WHERE username = ?";
+            String increaseSeller = "UPDATE users SET sold = sold + 1 "
+                + "WHERE username = ?";
+
+            stmt = conn.prepareStatement(increaseBuyer);
+            stmt.setString(1, buyer.getName());
+            stmt.executeUpdate();
+            stmt = conn.prepareStatement(increaseSeller);
+            stmt.setString(1, client.getName());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println(e);
+        }
         return (Item) result;
     }
 
     @Override
     public Client addClient(String name) throws RemoteException {
         Client client;
-        if ((client = this.clients.get(name)) != null) {
+        if ((client = this.getClient(name)) != null) {
             System.err.println("User already exists");
         }  else {
             System.out.format("Adding user %s\n", name);
@@ -189,21 +264,44 @@ public class MarketImpl extends UnicastRemoteObject implements Market {
                 } catch (RejectedException e) {
                 }
             }
-            client = new ClientImpl(name, acc);
-            this.clients.put(name, client);
+            ClientImpl intClient = new ClientImpl(name, acc);
+            client = (Client) intClient;
+            intClient.store(this.getConnection());
         }
         return client;
     }
 
     @Override
     public Client getClient(String name) throws RemoteException {
-        return this.clients.get(name);
+        String getUser = "SELECT username FROM users WHERE username = ? LIMIT 1";
+        Account acc = bank.getAccount(name);
+        Connection conn = this.getConnection();
+        if (acc == null) {
+            System.err.println("Account error");
+            return null;
+        }
+        try {
+            PreparedStatement stmt = conn.prepareStatement(getUser);
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                if (name.equals(rs.getString("username"))) {
+                    return (Client) new ClientImpl(name, acc);
+                } else {
+                    return null;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println(e);
+            return null;
+        }
+        return null;
     }
 
     @Override
     public Client deleteClient(Client client) throws RemoteException {
         System.out.format("Deleting user %s\n", client.getName());
-        return this.clients.replace(client.getName(), null);
+        return null; 
     }
 
     @Override

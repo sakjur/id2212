@@ -63,6 +63,10 @@ public class Trader {
                 user = marketplace.addClient(line);
             }
 
+            if (user == null) {
+                return;
+            }
+
             bankAcc = bank.getAccount(user.getName());
             if (bankAcc == null) {
                 try {

@@ -1,0 +1,18 @@
+CREATE TABLE users (
+    username VARCHAR(255) PRIMARY KEY,
+    passwd BLOB,
+    sold INTEGER DEFAULT 0,
+    bought INTEGER DEFAULT 0
+) ENGINE=INNODB;
+
+CREATE TABLE items (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    price INTEGER,
+    owner VARCHAR(255),
+    FOREIGN KEY (owner) REFERENCES users (username)
+) ENGINE=INNODB;
+
+ALTER TABLE items ADD available BOOL;
+ALTER TABLE users ADD active BOOL;
+
