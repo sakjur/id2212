@@ -5,13 +5,24 @@
  */
 package is.mjuk.fish;
 
-import java.lang.NumberFormatException;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.NumberFormatException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.Arrays;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Stream;
 
 public class Client {
     private String path;
     private InetSocketAddress server;
+    private File[] files;
+    private Client.ServerConnector conn;
 
     public static void main(String[] argv) {
         Integer port = 7000;
@@ -27,16 +38,20 @@ public class Client {
         }
 
         Client c = new Client(path, new InetSocketAddress(host, port));
-        c.run();
+        c.share();
     }
 
     public Client(String path, InetSocketAddress server) {
         this.path = path;
         this.server = server;
+        this.conn = new Client.ServerConnector(server);
+        Thread t = new Thread(this.conn);
+        t.start();
     }
 
-    public void run() {
-        System.out.format("%s -> %s:%d\n",
+    public void share() {
+        System.out.format(Helpers.CYAN + "%s" + Helpers.RESET +
+                " -> " + Helpers.PURPLE + "%s:%d\n" + Helpers.RESET,
             this.path,
             server.getHostString(),
             server.getPort()
@@ -51,10 +66,118 @@ public class Client {
         if (f.canRead() != true) {
             Helpers.print_err("Permission denied",
                 String.format("File %s is not readable", this.path));
+            System.exit(-2);
         }
+
+        this.files = this.get_filelist(f);
+
+        // Convert the list of files to a space separated list of files 
+        String filelist = String.join(" ", Arrays.stream(files)
+            .map(x -> x.getName())
+            .toArray(String[]::new));
+        conn.enqueue(filelist + "\r\n");
+    }
+
+    /**
+     * Gets a list of files in a directory or the file itself in an array
+     * <p>
+     * Filters out regular files from the directory f (or f itself if a regular
+     * file) which are read-able by the current user and returns them in a list
+     * of {@link java.io.File} objects
+     * 
+     * @param f Location of the input file or directory
+     * @return Array of regular files within the directory pointed to by f or
+     * an array containing only f if f is a regular file
+     */
+    private static File[] get_filelist(File f) {
+        File[] files;
         if (f.isDirectory()) {
-            // TODO Create a structure of the containing files if directory,
-            // otherwise create a structure with a single file
+            Stream<File> file_stream = Arrays.stream(f.listFiles())
+                .filter(x -> x.isFile())
+                .filter(x -> x.canRead()); 
+            files = file_stream.toArray(File[]::new);
+        } else {
+            files = new File[]{f};
+        }
+        return files;
+    }
+
+    private class ServerConnector implements Runnable {
+        private InetSocketAddress addr;
+        private LinkedBlockingQueue<byte[]> sending_queue = new
+            LinkedBlockingQueue<byte[]>();
+        private boolean running = true;
+
+        public ServerConnector(InetSocketAddress addr) {
+            this.addr = addr;
+        }
+
+        public void enqueue(String str) {
+            this.enqueue(str.getBytes());
+        }
+
+        public void enqueue(byte[] bytes) {
+            try {
+                this.sending_queue.put(bytes);
+            } catch (InterruptedException e) {
+            }
+        }
+
+        public void exit() {
+            this.running = false;
+        }
+
+        public void run() {
+            Socket socket = new Socket();
+            BufferedReader in;
+            BufferedOutputStream out;
+            try {
+                socket.connect(addr, 500);
+                in = new BufferedReader(new InputStreamReader(
+                    socket.getInputStream(), "UTF-8"));
+                out = new BufferedOutputStream(socket.getOutputStream()); 
+
+                this.enqueue("HELLO\r\n");
+            } catch (IOException e) {
+                Helpers.print_err("Could not connect to server", e.toString());
+                this.running = false;
+                return;
+            }
+
+            Sender sender = new Sender(this.sending_queue, out);
+            Thread sender_t = new Thread(sender);
+            sender_t.start();
+
+            while(this.running) {
+                
+            }
+        }
+
+        private class Sender implements Runnable {
+            private LinkedBlockingQueue<byte[]> queue;
+            private BufferedOutputStream out;
+            private boolean running = true;
+
+            public Sender(LinkedBlockingQueue<byte[]> queue, BufferedOutputStream out) {
+                this.queue = queue;
+                this.out = out;
+            }
+
+            public void exit() {
+                this.running = false;
+            }
+
+            public void run() {
+                while (this.running) {
+                    try {
+                        byte[] outgoing = queue.take();
+                        out.write(outgoing);
+                        out.flush();
+                    } catch (InterruptedException e) {
+                    } catch (IOException e) {
+                    }
+                }
+            }
         }
     }
 
