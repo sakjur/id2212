@@ -5,24 +5,16 @@
  */
 package is.mjuk.fish;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.lang.NumberFormatException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Arrays;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Stream;
 
 public class Client {
     private String path;
     private InetSocketAddress server;
     private File[] files;
-    private Client.ServerConnector conn;
+    private ServerConnector conn;
 
     public static void main(String[] argv) {
         Integer port = 7000;
@@ -44,8 +36,8 @@ public class Client {
     public Client(String path, InetSocketAddress server) {
         this.path = path;
         this.server = server;
-        this.conn = new Client.ServerConnector(server);
-        Thread t = new Thread(this.conn);
+        this.conn = new ServerConnector(server);
+        Thread t = new Thread(this.conn, "Server Connector");
         t.start();
     }
 
@@ -75,7 +67,7 @@ public class Client {
         String filelist = String.join(" ", Arrays.stream(files)
             .map(x -> x.getName())
             .toArray(String[]::new));
-        conn.enqueue(filelist + "\r\n");
+        conn.enqueue("SHARE " + filelist + "\r\n");
     }
 
     /**
@@ -101,85 +93,5 @@ public class Client {
         }
         return files;
     }
-
-    private class ServerConnector implements Runnable {
-        private InetSocketAddress addr;
-        private LinkedBlockingQueue<byte[]> sending_queue = new
-            LinkedBlockingQueue<byte[]>();
-        private boolean running = true;
-
-        public ServerConnector(InetSocketAddress addr) {
-            this.addr = addr;
-        }
-
-        public void enqueue(String str) {
-            this.enqueue(str.getBytes());
-        }
-
-        public void enqueue(byte[] bytes) {
-            try {
-                this.sending_queue.put(bytes);
-            } catch (InterruptedException e) {
-            }
-        }
-
-        public void exit() {
-            this.running = false;
-        }
-
-        public void run() {
-            Socket socket = new Socket();
-            BufferedReader in;
-            BufferedOutputStream out;
-            try {
-                socket.connect(addr, 500);
-                in = new BufferedReader(new InputStreamReader(
-                    socket.getInputStream(), "UTF-8"));
-                out = new BufferedOutputStream(socket.getOutputStream()); 
-
-                this.enqueue("HELLO\r\n");
-            } catch (IOException e) {
-                Helpers.print_err("Could not connect to server", e.toString());
-                this.running = false;
-                return;
-            }
-
-            Sender sender = new Sender(this.sending_queue, out);
-            Thread sender_t = new Thread(sender);
-            sender_t.start();
-
-            while(this.running) {
-                
-            }
-        }
-
-        private class Sender implements Runnable {
-            private LinkedBlockingQueue<byte[]> queue;
-            private BufferedOutputStream out;
-            private boolean running = true;
-
-            public Sender(LinkedBlockingQueue<byte[]> queue, BufferedOutputStream out) {
-                this.queue = queue;
-                this.out = out;
-            }
-
-            public void exit() {
-                this.running = false;
-            }
-
-            public void run() {
-                while (this.running) {
-                    try {
-                        byte[] outgoing = queue.take();
-                        out.write(outgoing);
-                        out.flush();
-                    } catch (InterruptedException e) {
-                    } catch (IOException e) {
-                    }
-                }
-            }
-        }
-    }
-
 }
 
