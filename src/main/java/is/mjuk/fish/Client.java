@@ -63,11 +63,9 @@ public class Client {
 
         this.files = this.get_filelist(f);
 
-        // Convert the list of files to a space separated list of files 
-        String filelist = String.join(" ", Arrays.stream(files)
-            .map(x -> x.getName())
-            .toArray(String[]::new));
-        conn.enqueue("SHARE " + filelist + "\r\n");
+        for (File file : files) {
+            conn.enqueue("SHARE " + file.getName() + "\r\n");
+        }
     }
 
     /**
