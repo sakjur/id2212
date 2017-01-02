@@ -3,7 +3,6 @@ package is.mjuk.fish;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.NumberFormatException;
 import java.net.InetSocketAddress;
@@ -17,7 +16,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Utilizes message queues based on LinkedBlockingQueues for incoming and
  * outgoing messages
  */
-public class ServerConnector implements Runnable {
+public class ServerConnector implements Runnable, ConnectorInterface {
     private InetSocketAddress addr;
     private LinkedBlockingQueue<byte[]> sending_queue = new
         LinkedBlockingQueue<byte[]>();
@@ -25,13 +24,6 @@ public class ServerConnector implements Runnable {
 
     public ServerConnector(InetSocketAddress addr) {
         this.addr = addr;
-    }
-
-    /**
-     * Add a string to be sent to the server
-     */
-    public void enqueue(String str) {
-        this.enqueue(str.getBytes());
     }
 
     /**
@@ -87,7 +79,19 @@ public class ServerConnector implements Runnable {
         pinger_t.start();
 
         while(this.running) {
-            // TODO Read the incoming stream 
+            String line;
+            try {
+                if ((line = in.readLine()) != null) {
+                    if (line.equals("PING")) {
+                        this.enqueue("PONG\r\n");
+                    } else {
+                        System.out.println(line);
+                    }
+                }
+            } catch (IOException e) {
+            }
+
+
             if (sender.isRunning() == false) {
                 this.running = false;
             }
@@ -102,67 +106,6 @@ public class ServerConnector implements Runnable {
         }
         sender.exit();
         pinger_t.interrupt();
-    }
-
-    /**
-     * The class that goes PING
-     */
-    private class Pinger implements Runnable {
-        ServerConnector conn; 
-
-        public Pinger(ServerConnector conn) {
-            this.conn = conn;
-        }
-
-        public void run() {
-            Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
-            while(conn.isRunning()) {
-                conn.enqueue("PING\r\n");
-                try {
-                    Thread.sleep(3000); 
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-        }
-    }
-
-    private class Sender implements Runnable {
-        private LinkedBlockingQueue<byte[]> queue;
-        private BufferedOutputStream out;
-        private boolean running = true;
-
-        public Sender(LinkedBlockingQueue<byte[]> queue, BufferedOutputStream out) {
-            this.queue = queue;
-            this.out = out;
-        }
-
-        public void exit() {
-            this.running = false;
-        }
-
-        public boolean isRunning() {
-            return this.running;
-        }
-
-        public void run() {
-            while (this.running) {
-                try {
-                    byte[] outgoing = queue.take();
-                    out.write(outgoing);
-                    out.flush();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                } catch (Exception e) {
-                    Helpers.print_err("Cannot send message to server",
-                        e.toString());
-                    this.running = false;
-                    return;
-                }
-            }
-        }
     }
 }
 
