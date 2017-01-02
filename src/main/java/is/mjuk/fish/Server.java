@@ -40,6 +40,14 @@ public class Server {
     }
 
     public void run() {
+        String welcome = Helpers.YELLOW +
+            "Server started listening\n" +
+            Helpers.RESET +
+            "Connect clients to port " + Helpers.GREEN + "7000\n" +
+            Helpers.BLUE +
+            "Enjoy " + Helpers.RED + "<3\n" + Helpers.RESET;
+        System.out.println(welcome);
+
         while (true) {
             try {
                 Socket conn = socket.accept();
@@ -51,11 +59,15 @@ public class Server {
         }
     }
 
+    public void debug(String str) {
+        // System.out.println(str);
+    }
+
     public synchronized void add_client(InetAddress remote_address) {
         this.connected_clients.put(remote_address.getHostAddress(),
             new ClientStore(remote_address));
 
-        System.out.println("Added user " + remote_address.getHostAddress());
+        debug("Added user " + remote_address.getHostAddress());
     }
 
     public synchronized void add_file(InetAddress client, String filename) {
@@ -69,13 +81,13 @@ public class Server {
         }
         filedb_listing.add(store);
 
-        System.out.println("Added file " + filename);
+        debug("Added file " + filename);
     }
 
     public synchronized String[] find_file(String filename) {
         TreeSet<ClientStore> fileset = this.filedb.get(filename);
         if (fileset == null) {
-            String[] array = new String[]{"NOTFOUND" + filename + "\r\n"};
+            String[] array = new String[]{"NOTFOUND " + filename + "\r\n"};
             return array; 
         }
 
@@ -100,16 +112,16 @@ public class Server {
         for (String filename : store.files) {
             TreeSet<ClientStore> dataset = this.filedb.get(filename);
             dataset.remove(store);
-            System.out.println("Removed client " + remote_address.getHostAddress());
+            debug("Removed client " + remote_address.getHostAddress());
             if (dataset.size() == 0) {
                 this.filedb.remove(filename);
-                System.out.println("Removed file " + filename);
+                debug("Removed file " + filename);
             }
         }
 
         this.connected_clients.remove(remote_address.getHostAddress());
 
-        System.out.println("Deleted client " + remote_address.getHostAddress());
+        debug("Deleted client " + remote_address.getHostAddress());
     }
 
     private class ClientStore implements Comparable<ClientStore> {
@@ -153,7 +165,7 @@ public class Server {
         }
 
         public void run() {
-            System.out.println("Connected to " + Helpers.CYAN +
+            System.out.println(Helpers.RESET + "Connected to " + Helpers.CYAN +
                 this.conn.getInetAddress().getHostName() + Helpers.RESET);
 
             BufferedReader in;
@@ -188,6 +200,15 @@ public class Server {
                         } else if (line.startsWith("SHARE ")) {
                             this.parent.add_file(this.conn.getInetAddress(),
                                 line.substring(6)); 
+                        } else if (line.startsWith("FIND ")) {
+                            String[] msgs = this.parent.find_file(line.substring(5));
+                            for (String msg : msgs) {
+                                this.enqueue(msg);
+                            }
+                        } else if (line.startsWith("EXIT")) {
+                            System.out.println("Closing connection to " +
+                                this.conn.getInetAddress().getHostName());
+                            break;
                         } else {
                             System.out.println(line);
                         }
@@ -199,11 +220,13 @@ public class Server {
                     Helpers.print_err("Client did not respond to ping",
                         "Closing client connectiong thread for " +
                         this.conn.getInetAddress().getHostName());
-                    this.running = false;
+                    break;
                 }
                 Thread.currentThread().yield();
             }
 
+            this.running = false;
+            sender.exit();
             this.parent.del_client(this.conn.getInetAddress());
         }
     }

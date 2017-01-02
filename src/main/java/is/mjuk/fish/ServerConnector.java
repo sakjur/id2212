@@ -55,8 +55,6 @@ public class ServerConnector implements Runnable, ConnectorInterface {
             in = new BufferedReader(new InputStreamReader(
                 socket.getInputStream(), "UTF-8"));
             out = new BufferedOutputStream(socket.getOutputStream()); 
-
-            this.enqueue("HELLO\r\n");
         } catch (IOException e) {
             Helpers.print_err("Could not connect to server", e.toString());
             this.running = false;
