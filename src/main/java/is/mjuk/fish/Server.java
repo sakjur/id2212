@@ -10,12 +10,20 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.HashMap;
+import java.util.TreeSet;
 
 public class Server {
     private ServerSocket socket;
+    private HashMap<String, ClientStore> connected_clients =
+        new HashMap<String, ClientStore>();
+    private HashMap<String, TreeSet<ClientStore>> filedb =
+        new HashMap<String, TreeSet<ClientStore>>();
 
     public Server() {
         try {
@@ -40,6 +48,82 @@ public class Server {
             } catch (IOException e) {
                 Helpers.print_err("Could not make client connection", e.toString());
             }
+        }
+    }
+
+    public synchronized void add_client(InetAddress remote_address) {
+        this.connected_clients.put(remote_address.getHostAddress(),
+            new ClientStore(remote_address));
+
+        System.out.println("Added user " + remote_address.getHostAddress());
+    }
+
+    public synchronized void add_file(InetAddress client, String filename) {
+        ClientStore store = this.connected_clients.get(client.getHostAddress());
+        store.files.add(filename);
+        
+        TreeSet<ClientStore> filedb_listing;
+        if ((filedb_listing = this.filedb.get(filename)) == null) {
+            filedb_listing = new TreeSet<ClientStore>();
+            this.filedb.put(filename, filedb_listing);
+        }
+        filedb_listing.add(store);
+
+        System.out.println("Added file " + filename);
+    }
+
+    public synchronized String[] find_file(String filename) {
+        TreeSet<ClientStore> fileset = this.filedb.get(filename);
+        if (fileset == null) {
+            String[] array = new String[]{"NOTFOUND" + filename + "\r\n"};
+            return array; 
+        }
+
+        ArrayList<String> tmp = new ArrayList<String>();
+
+        for (ClientStore entry : fileset) {
+            tmp.add("FOUND " + filename + " " +
+                entry.remote_address.getHostAddress() + " " +
+                entry.port.toString() + "\r\n");
+        }
+
+        return tmp.toArray(new String[tmp.size()]);
+    }
+
+    public synchronized void del_client(InetAddress remote_address) {
+        ClientStore store = this.connected_clients.get(remote_address.getHostAddress());
+
+        if (store == null) {
+            return;
+        }
+
+        for (String filename : store.files) {
+            TreeSet<ClientStore> dataset = this.filedb.get(filename);
+            dataset.remove(store);
+            System.out.println("Removed client " + remote_address.getHostAddress());
+            if (dataset.size() == 0) {
+                this.filedb.remove(filename);
+                System.out.println("Removed file " + filename);
+            }
+        }
+
+        this.connected_clients.remove(remote_address.getHostAddress());
+
+        System.out.println("Deleted client " + remote_address.getHostAddress());
+    }
+
+    private class ClientStore implements Comparable<ClientStore> {
+        public InetAddress remote_address;
+        public Integer port = -1;
+        public TreeSet<String> files = new TreeSet<String>(); 
+
+        public ClientStore(InetAddress remote_address) {
+            this.remote_address = remote_address;
+        }
+
+        @Override
+        public int compareTo(ClientStore other) {
+            return this.remote_address.getHostAddress().compareTo(other.remote_address.getHostAddress());
         }
     }
 
@@ -70,7 +154,7 @@ public class Server {
 
         public void run() {
             System.out.println("Connected to " + Helpers.CYAN +
-                this.conn.getInetAddress().toString() + Helpers.RESET);
+                this.conn.getInetAddress().getHostName() + Helpers.RESET);
 
             BufferedReader in;
             BufferedOutputStream out;
@@ -93,12 +177,17 @@ public class Server {
             Thread pinger_t = new Thread(new Pinger(this), "Pinger");
             pinger_t.start();
 
+            this.parent.add_client(this.conn.getInetAddress());
+
             while (this.isRunning()) {
                 String line;
                 try {
                     if ((line = in.readLine()) != null) {
                         if (line.equals("PING")) {
-                            this.enqueue("PONG\r\n");
+                            // Simply ignore the PINGs
+                        } else if (line.startsWith("SHARE ")) {
+                            this.parent.add_file(this.conn.getInetAddress(),
+                                line.substring(6)); 
                         } else {
                             System.out.println(line);
                         }
@@ -109,11 +198,13 @@ public class Server {
                 if (sender.isRunning() == false) {
                     Helpers.print_err("Client did not respond to ping",
                         "Closing client connectiong thread for " +
-                        this.conn.getInetAddress().toString());
+                        this.conn.getInetAddress().getHostName());
                     this.running = false;
                 }
                 Thread.currentThread().yield();
             }
+
+            this.parent.del_client(this.conn.getInetAddress());
         }
     }
 }

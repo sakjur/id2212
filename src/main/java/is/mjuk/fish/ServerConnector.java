@@ -83,7 +83,7 @@ public class ServerConnector implements Runnable, ConnectorInterface {
             try {
                 if ((line = in.readLine()) != null) {
                     if (line.equals("PING")) {
-                        this.enqueue("PONG\r\n");
+                        // Ignore PINGs 
                     } else {
                         System.out.println(line);
                     }

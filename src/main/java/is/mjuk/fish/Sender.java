@@ -31,8 +31,7 @@ public class Sender implements Runnable {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
-                Helpers.print_err("Cannot send message to server",
-                    e.toString());
+                Helpers.print_err("Cannot send message", e.toString());
                 this.running = false;
                 return;
             }
