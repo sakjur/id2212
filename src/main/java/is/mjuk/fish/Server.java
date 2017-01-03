@@ -59,13 +59,21 @@ public class Server {
         }
     }
 
+    /**
+     * Possibly a System.out.println-wrapper
+     * <p>
+     * Wraps System.out.println and may be outcommented (in which case it's a
+     * nop) for development purposes.
+     *
+     * @param str String to (possibly) be displayed to the user
+     */
     public void debug(String str) {
         // System.out.println(str);
     }
 
-    public synchronized void add_client(InetAddress remote_address) {
+    public synchronized void add_client(InetAddress remote_address, Thread t) {
         this.connected_clients.put(remote_address.getHostAddress(),
-            new ClientStore(remote_address));
+            new ClientStore(remote_address, t));
 
         debug("Added user " + remote_address.getHostAddress());
     }
@@ -102,11 +110,42 @@ public class Server {
         return tmp.toArray(new String[tmp.size()]);
     }
 
-    public synchronized void del_client(InetAddress remote_address) {
+    /**
+     * Deletes clients launched by specific thread only
+     * <p>
+     * When a client crashes, the user might restart the client before the old
+     * thread is killed. If that happens, the server doesn't want to remove the
+     * database entry of the new client and thus this method deletes the client
+     * if and only if the thread which initialized the client is the thread
+     * requesting deletion of the client.
+     *
+     * @param remote_address Key for the database entry
+     * @param t Thread of the client connection which wishes to delete the
+     * database entry
+     * @return false if client entry wasn't deleted
+     */
+    public synchronized boolean del_client(InetAddress remote_address, Thread t) {
+        ClientStore store = this.connected_clients.get(remote_address.getHostAddress());
+        if (store.thread.equals(t)) {
+            return this.del_client(remote_address);
+        }
+        return false;
+    }
+
+    /**
+     * Idempotently deletes a client
+     * <p>
+     * Ensures that a client is deleted after this method has ran
+     *
+     * @param remote_address Key for the database entry
+     * @return Currently always returns true. False would indicate that the
+     * objects is still present in the database
+     */
+    public synchronized boolean del_client(InetAddress remote_address) {
         ClientStore store = this.connected_clients.get(remote_address.getHostAddress());
 
         if (store == null) {
-            return;
+            return true;
         }
 
         for (String filename : store.files) {
@@ -122,15 +161,18 @@ public class Server {
         this.connected_clients.remove(remote_address.getHostAddress());
 
         debug("Deleted client " + remote_address.getHostAddress());
+        return true;
     }
 
     private class ClientStore implements Comparable<ClientStore> {
         public InetAddress remote_address;
         public Integer port = -1;
         public TreeSet<String> files = new TreeSet<String>(); 
+        public Thread thread;
 
-        public ClientStore(InetAddress remote_address) {
+        public ClientStore(InetAddress remote_address, Thread t) {
             this.remote_address = remote_address;
+            this.thread = t;
         }
 
         @Override
@@ -189,7 +231,8 @@ public class Server {
             Thread pinger_t = new Thread(new Pinger(this), "Pinger");
             pinger_t.start();
 
-            this.parent.add_client(this.conn.getInetAddress());
+            this.parent.add_client(this.conn.getInetAddress(),
+                Thread.currentThread());
 
             while (this.isRunning()) {
                 String line;
@@ -208,6 +251,7 @@ public class Server {
                         } else if (line.startsWith("EXIT")) {
                             System.out.println("Closing connection to " +
                                 this.conn.getInetAddress().getHostName());
+                            this.parent.del_client(this.conn.getInetAddress());
                             break;
                         } else {
                             System.out.println(line);
@@ -217,9 +261,12 @@ public class Server {
                 }
 
                 if (sender.isRunning() == false) {
-                    Helpers.print_err("Client did not respond to ping",
-                        "Closing client connectiong thread for " +
-                        this.conn.getInetAddress().getHostName());
+                    if (this.parent.del_client(this.conn.getInetAddress(),
+                            Thread.currentThread())) {
+                        Helpers.print_err("Client did not respond to ping",
+                            "Closing client connectiong thread for " +
+                            this.conn.getInetAddress().getHostName());
+                    }
                     break;
                 }
                 Thread.currentThread().yield();
@@ -227,7 +274,6 @@ public class Server {
 
             this.running = false;
             sender.exit();
-            this.parent.del_client(this.conn.getInetAddress());
         }
     }
 }

@@ -39,6 +39,7 @@ public class ServerConnector implements Runnable, ConnectorInterface {
     }
 
     public void exit() {
+        this.enqueue("EXIT\r\n");
         this.running = false;
     }
 
@@ -68,14 +69,6 @@ public class ServerConnector implements Runnable, ConnectorInterface {
         Thread sender_t = new Thread(sender, "Sender");
         sender_t.start();
 
-        // This thread just sends ping to the server once in a while
-        // If this is here when you are reading this (whoever you are) that's
-        // probably not a very good sign. I should probably remove this.
-        // 
-        // Not going to care though.
-        Thread pinger_t = new Thread(new Pinger(this), "Pinger");
-        pinger_t.start();
-
         while(this.running) {
             String line;
             try {
@@ -83,7 +76,7 @@ public class ServerConnector implements Runnable, ConnectorInterface {
                     if (line.equals("PING")) {
                         // Ignore PINGs 
                     } else {
-                        System.out.println(line);
+                        System.out.println("\n" + line);
                     }
                 }
             } catch (IOException e) {
@@ -103,7 +96,6 @@ public class ServerConnector implements Runnable, ConnectorInterface {
                 e.toString());
         }
         sender.exit();
-        pinger_t.interrupt();
     }
 }
 

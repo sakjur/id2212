@@ -28,6 +28,12 @@ public class Sender implements Runnable {
                 out.write(outgoing);
                 out.flush();
             } catch (InterruptedException e) {
+                try {
+                    out.write("EXIT\r\n".getBytes());
+                    out.flush();
+                } catch (Exception e2) {
+                    // Whatever, if it doesn't work, simply die.
+                }
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {

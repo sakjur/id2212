@@ -6,6 +6,9 @@
 package is.mjuk.fish;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -31,6 +34,7 @@ public class Client {
 
         Client c = new Client(path, new InetSocketAddress(host, port));
         c.share();
+        c.cli_loop();
     }
 
     public Client(String path, InetSocketAddress server) {
@@ -68,6 +72,10 @@ public class Client {
         }
     }
 
+    public File[] getFiles() {
+        return this.files;
+    }
+
     /**
      * Gets a list of files in a directory or the file itself in an array
      * <p>
@@ -90,6 +98,28 @@ public class Client {
             files = new File[]{f};
         }
         return files;
+    }
+
+    private void cli_loop() {
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        String line;
+
+        while (true) {
+            System.out.print("||| ");
+            try {
+                line = in.readLine();
+                
+                if (line.startsWith("exit")) {
+                    this.conn.exit();
+                    System.exit(0);
+                }
+                if (line.startsWith("find ")) {
+                    this.conn.enqueue("FIND " + line.substring(5) + "\r\n");
+                }
+            } catch (IOException e) {
+                Helpers.print_err("Failed parsing", e.toString());
+            }
+        }
     }
 }
 
