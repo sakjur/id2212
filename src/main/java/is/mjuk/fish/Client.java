@@ -70,6 +70,15 @@ public class Client {
         for (File file : files) {
             conn.enqueue("SHARE " + file.getName() + "\r\n");
         }
+
+        PeerListener p = new PeerListener(this);
+        Thread peer_t = new Thread(p, "Peer Listener");
+        peer_t.start();
+        int peer_port = -1;
+        while (peer_port == -1) {
+            peer_port = p.getPort();
+        }
+        conn.enqueue("PORT " + Integer.valueOf(peer_port) + "\r\n");
     }
 
     public File[] getFiles() {
@@ -115,6 +124,11 @@ public class Client {
                 }
                 if (line.startsWith("find ")) {
                     this.conn.enqueue("FIND " + line.substring(5) + "\r\n");
+                }
+
+                if (line.startsWith("download ")) {
+                    String target = line.substring(9);
+                    this.conn.enqueue("FIND " + target + "\r\n");
                 }
             } catch (IOException e) {
                 Helpers.print_err("Failed parsing", e.toString());

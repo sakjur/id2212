@@ -78,6 +78,11 @@ public class Server {
         debug("Added user " + remote_address.getHostAddress());
     }
 
+    public synchronized void set_port(InetAddress client, int port) {
+        ClientStore store = this.connected_clients.get(client.getHostAddress());
+        store.port = port;
+    }
+
     public synchronized void add_file(InetAddress client, String filename) {
         ClientStore store = this.connected_clients.get(client.getHostAddress());
         store.files.add(filename);
@@ -248,6 +253,10 @@ public class Server {
                             for (String msg : msgs) {
                                 this.enqueue(msg);
                             }
+                        } else if (line.startsWith("PORT ")) {
+                            String port = line.substring(5);
+                            this.parent.set_port(this.conn.getInetAddress(),
+                                Integer.parseInt(port));
                         } else if (line.startsWith("EXIT")) {
                             System.out.println("Closing connection to " +
                                 this.conn.getInetAddress().getHostName());
