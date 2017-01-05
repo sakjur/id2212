@@ -11,12 +11,21 @@ import java.net.Socket;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.HashMap;
 
+/**
+ * Open a ServerSocket that sends file per request
+ */
 public class PeerListener implements Runnable {
     private Client parent;
     private Integer port = -1;
     private ServerSocket socket = null;
     private HashMap<String, File> file_list = new HashMap<String, File>();
 
+    /**
+     * Initialize variables and open a ServerSocket
+     *
+     * @param parent The {@link is.mjuk.fish.Client} that initialized this
+     * PeerListener
+     */
     public PeerListener(Client parent) {
         this.parent = parent;
         this.port = ThreadLocalRandom.current().nextInt(28000, 28800);
@@ -63,9 +72,17 @@ public class PeerListener implements Runnable {
         }
     }
 
+    /**
+     * Open up a single file transmission
+     */
     public class SinglePeerListener implements Runnable {
         private Socket conn;
         private HashMap<String, File> file_list;
+
+        /**
+         * @param conn The connection to use to send a file
+         * @param file_list The files that are available to send
+         */
         public SinglePeerListener(Socket conn, HashMap<String, File> file_list) {
             this.conn = conn;
             this.file_list = file_list;

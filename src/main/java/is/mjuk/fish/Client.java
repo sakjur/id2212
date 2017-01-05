@@ -51,10 +51,16 @@ public class Client {
         t.start();
     }
 
+    /**
+     * Get the position where downloaded files will be stored
+     */
     public String getDestination() {
         return this.destination;
     }
 
+    /**
+     * Update and send the list of shared files to the server
+     */
     public void share() {
         System.out.format(Helpers.CYAN + "%s" + Helpers.RESET +
                 " -> " + Helpers.PURPLE + "%s:%d\n" + Helpers.RESET,
@@ -82,6 +88,9 @@ public class Client {
         }
     }
 
+    /**
+     * Get the list of files shared by this client
+     */
     public File[] getFiles() {
         return this.files;
     }
@@ -150,6 +159,10 @@ public class Client {
                 if (line.startsWith("destination ")) {
                     this.destination = line.substring(12);
                     System.out.println("New download destination " + this.destination);
+                }
+
+                if (line.equals("destination")) {
+                    System.out.println("Download destination " + this.destination);
                 }
             } catch (IOException e) {
                 Helpers.print_err("Failed parsing", e.toString());

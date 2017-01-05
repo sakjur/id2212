@@ -11,10 +11,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ArrayList;
 
+/**
+ * Thread which download requested files in the background
+ */
 public class Downloader implements Runnable {
     private HashMap<String, ArrayList<InetSocketAddress>> download_pending;
     private Client parent;
 
+    /**
+     * @param download_pending Structure for pending downloads
+     * @param parent The {@link is.mjuk.fish.Client} that initialized this
+     * downloader
+     */
     public Downloader(HashMap<String, ArrayList<InetSocketAddress>> download_pending,
             Client parent) {
         this.download_pending = download_pending;
