@@ -10,7 +10,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.stream.Stream;
 
 public class Client {
@@ -18,6 +20,8 @@ public class Client {
     private InetSocketAddress server;
     private File[] files;
     private ServerConnector conn;
+    private HashMap<String, ArrayList<InetSocketAddress>> download_pending =
+        new HashMap<String, ArrayList<InetSocketAddress>>();
 
     public static void main(String[] argv) {
         Integer port = 7000;
@@ -32,6 +36,7 @@ public class Client {
             System.exit(-1);
         }
 
+
         Client c = new Client(path, new InetSocketAddress(host, port));
         c.share();
         c.cli_loop();
@@ -40,7 +45,7 @@ public class Client {
     public Client(String path, InetSocketAddress server) {
         this.path = path;
         this.server = server;
-        this.conn = new ServerConnector(server);
+        this.conn = new ServerConnector(server, download_pending);
         Thread t = new Thread(this.conn, "Server Connector");
         t.start();
     }
@@ -113,6 +118,10 @@ public class Client {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         String line;
 
+        Downloader downloader = new Downloader(download_pending);
+        Thread downloader_t = new Thread(downloader, "Downloader");
+        downloader_t.start();
+
         while (true) {
             System.out.print("||| ");
             try {
@@ -120,6 +129,7 @@ public class Client {
                 
                 if (line.startsWith("exit")) {
                     this.conn.exit();
+                    downloader_t.interrupt();
                     System.exit(0);
                 }
                 if (line.startsWith("find ")) {
@@ -129,6 +139,7 @@ public class Client {
                 if (line.startsWith("download ")) {
                     String target = line.substring(9);
                     this.conn.enqueue("FIND " + target + "\r\n");
+                    this.download_pending.put(target, new ArrayList<InetSocketAddress>());
                 }
             } catch (IOException e) {
                 Helpers.print_err("Failed parsing", e.toString());

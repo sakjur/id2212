@@ -96,9 +96,7 @@ public class PeerListener implements Runnable {
                     if (file_to_send != null) {
                         File file = file_list.get(file_to_send);
                         if (file == null) {
-                            String notfound = "NOTFOUND " + file_to_send + "\r\n";
-                            out.write(notfound.getBytes());
-                            out.flush();
+                            conn.close();
                             break;
                         }
                         FileInputStream file_io = new FileInputStream(file);

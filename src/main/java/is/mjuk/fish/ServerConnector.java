@@ -7,7 +7,10 @@ import java.io.InputStreamReader;
 import java.lang.NumberFormatException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.HashMap;
 
 /**
  * Connects the client to a server
@@ -21,9 +24,12 @@ public class ServerConnector implements Runnable, ConnectorInterface {
     private LinkedBlockingQueue<byte[]> sending_queue = new
         LinkedBlockingQueue<byte[]>();
     private boolean running = true;
+    private HashMap<String, ArrayList<InetSocketAddress>> download_pending;
 
-    public ServerConnector(InetSocketAddress addr) {
+    public ServerConnector(InetSocketAddress addr,
+            HashMap<String, ArrayList<InetSocketAddress>> download_pending) {
         this.addr = addr;
+        this.download_pending = download_pending;
     }
 
     /**
@@ -75,6 +81,25 @@ public class ServerConnector implements Runnable, ConnectorInterface {
                 if ((line = in.readLine()) != null) {
                     if (line.equals("PING")) {
                         // Ignore PINGs 
+                    } else if (line.startsWith("NOTFOUND ")) {
+                        String obj = line.substring(9);
+                        System.out.println("\n Couldn't find " + obj);
+                        download_pending.remove(obj);
+                    } else if (line.startsWith("FOUND ")) {
+                        String[] obj = line.substring(6).split(" ");
+                        String host = obj[obj.length - 2];
+                        int port = Integer.valueOf(obj[obj.length - 1]);
+                        String filename = String.join(" ",
+                                Arrays.copyOfRange(obj, 0, obj.length - 2));
+                        if (download_pending.containsKey(filename)) {
+                            ArrayList<InetSocketAddress> set = download_pending.get(filename);
+                            if (set != null) {
+                                set.add(new InetSocketAddress(host, port)); 
+                            }
+                        } 
+
+                        System.out.println("\n Found " + filename + " on " +
+                                host);
                     } else {
                         System.out.println("\n" + line);
                     }
