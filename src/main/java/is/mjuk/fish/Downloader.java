@@ -13,9 +13,12 @@ import java.util.ArrayList;
 
 public class Downloader implements Runnable {
     private HashMap<String, ArrayList<InetSocketAddress>> download_pending;
+    private Client parent;
 
-    public Downloader(HashMap<String, ArrayList<InetSocketAddress>> download_pending) {
+    public Downloader(HashMap<String, ArrayList<InetSocketAddress>> download_pending,
+            Client parent) {
         this.download_pending = download_pending;
+        this.parent = parent;
     }
 
     public void run() {
@@ -32,7 +35,7 @@ public class Downloader implements Runnable {
                         socket.connect(addr, 1500);
                         in = socket.getInputStream();
                         out = new BufferedOutputStream(socket.getOutputStream()); 
-                        File file_dest = new File("/tmp/" + filename);
+                        File file_dest = new File(this.parent.getDestination() + "/" + filename);
                         if (!file_dest.createNewFile()) {
                             Helpers.print_err("Couldn't create file",
                                     "File already exists or can't be created");

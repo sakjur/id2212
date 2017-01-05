@@ -22,6 +22,7 @@ public class Client {
     private ServerConnector conn;
     private HashMap<String, ArrayList<InetSocketAddress>> download_pending =
         new HashMap<String, ArrayList<InetSocketAddress>>();
+    private String destination = "/tmp";
 
     public static void main(String[] argv) {
         Integer port = 7000;
@@ -48,6 +49,10 @@ public class Client {
         this.conn = new ServerConnector(server, download_pending);
         Thread t = new Thread(this.conn, "Server Connector");
         t.start();
+    }
+
+    public String getDestination() {
+        return this.destination;
     }
 
     public void share() {
@@ -118,7 +123,7 @@ public class Client {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         String line;
 
-        Downloader downloader = new Downloader(download_pending);
+        Downloader downloader = new Downloader(download_pending, this);
         Thread downloader_t = new Thread(downloader, "Downloader");
         downloader_t.start();
 
@@ -140,6 +145,11 @@ public class Client {
                     String target = line.substring(9);
                     this.conn.enqueue("FIND " + target + "\r\n");
                     this.download_pending.put(target, new ArrayList<InetSocketAddress>());
+                }
+
+                if (line.startsWith("destination ")) {
+                    this.destination = line.substring(12);
+                    System.out.println("New download destination " + this.destination);
                 }
             } catch (IOException e) {
                 Helpers.print_err("Failed parsing", e.toString());
