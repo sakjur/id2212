@@ -83,37 +83,42 @@ public class PeerListener implements Runnable {
                 return;
             }
 
-            while (true) {
-                String line;
-                String file_to_send = null;
-                try {
-                    if ((line = in.readLine()) != null) {
-                        if (line.startsWith("DOWNLOAD ")) {
-                           file_to_send = line.substring(9); 
-                        }
+            String line;
+            String file_to_send = null;
+            try {
+                if ((line = in.readLine()) != null) {
+                    if (line.startsWith("DOWNLOAD ")) {
+                        file_to_send = line.substring(9); 
                     }
-
-                    if (file_to_send != null) {
-                        File file = file_list.get(file_to_send);
-                        if (file == null) {
-                            conn.close();
-                            break;
-                        }
-                        FileInputStream file_io = new FileInputStream(file);
-                        byte[] b = new byte[4096];
-
-                        while(file_io.read(b) != -1) {
-                            out.write(b);
-                            out.flush();
-                        }
-
-                        conn.close();
-                        break;
-                    }
-                } catch (IOException e) {
-                    Helpers.print_err("Peer listener I/O error", e.toString());
-                    return;
                 }
+
+                if (file_to_send != null) {
+                    File file = file_list.get(file_to_send);
+                    if (file == null) {
+                        byte[] e_did_not_find = "E_DNF".getBytes();
+                        out.write(e_did_not_find);
+                        out.flush();
+                        conn.close();
+                        return;
+                    }
+
+                    byte[] sending = "K_SEN".getBytes();
+                    out.write(sending);
+                    out.flush();
+
+                    FileInputStream file_io = new FileInputStream(file);
+                    byte[] b = new byte[4096];
+
+                    while(file_io.read(b) != -1) {
+                        out.write(b);
+                        out.flush();
+                    }
+
+                    conn.close();
+                }
+            } catch (IOException e) {
+                Helpers.print_err("Peer listener I/O error", e.toString());
+                return;
             }
         }
     }

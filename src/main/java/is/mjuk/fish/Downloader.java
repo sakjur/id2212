@@ -29,13 +29,14 @@ public class Downloader implements Runnable {
                     BufferedOutputStream out;
                     FileOutputStream out_file;
                     try {
-                        socket.connect(addr, 500);
+                        socket.connect(addr, 1500);
                         in = socket.getInputStream();
                         out = new BufferedOutputStream(socket.getOutputStream()); 
                         File file_dest = new File("/tmp/" + filename);
                         if (!file_dest.createNewFile()) {
                             Helpers.print_err("Couldn't create file",
                                     "File already exists or can't be created");
+                            download_pending.remove(filename);
                             break;
                         }
                         out_file = new FileOutputStream(file_dest);
@@ -43,6 +44,19 @@ public class Downloader implements Runnable {
                         String download_cmd = "DOWNLOAD " + filename + "\r\n";
                         out.write(download_cmd.getBytes());
                         out.flush();
+                        
+                        byte[] status = new byte[5];
+                        if (in.read(status) != 5) {
+                            Helpers.print_err("Reading status failed",
+                                    "Host: " + addr.getHostName());
+                            continue;
+                        };
+
+                        if (new String(status, "UTF-8").equals("E_DNF")) {
+                            Helpers.print_err("Could not find file on host",
+                                    "Host: " + addr.getHostName());
+                            continue;
+                        }
 
                         int read = 0;
                         byte[] bytes = new byte[4096];
@@ -51,6 +65,7 @@ public class Downloader implements Runnable {
                         }
                         download_pending.remove(filename);
                         System.out.println("Downloaded " + filename);
+                        socket.close();
                         break;
                     } catch (IOException e) {
                         Helpers.print_err("File Download Error", e.toString());
