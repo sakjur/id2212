@@ -118,6 +118,14 @@ public class PeerListener implements Runnable {
                 }
             } catch (IOException e) {
                 Helpers.print_err("Peer listener I/O error", e.toString());
+
+                try {
+                    out.write("E_DNF".getBytes());
+                    out.flush();
+                } catch (IOException e2) {
+                    Helpers.print_err("Double Exception", e.toString());
+                }
+
                 return;
             }
         }

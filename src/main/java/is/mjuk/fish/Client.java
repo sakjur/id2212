@@ -80,15 +80,6 @@ public class Client {
         for (File file : files) {
             conn.enqueue("SHARE " + file.getName() + "\r\n");
         }
-
-        PeerListener p = new PeerListener(this);
-        Thread peer_t = new Thread(p, "Peer Listener");
-        peer_t.start();
-        int peer_port = -1;
-        while (peer_port == -1) {
-            peer_port = p.getPort();
-        }
-        conn.enqueue("PORT " + Integer.valueOf(peer_port) + "\r\n");
     }
 
     public File[] getFiles() {
@@ -123,6 +114,15 @@ public class Client {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         String line;
 
+        PeerListener p = new PeerListener(this);
+        Thread peer_t = new Thread(p, "Peer Listener");
+        peer_t.start();
+        int peer_port = -1;
+        while (peer_port == -1) {
+            peer_port = p.getPort();
+        }
+
+        conn.enqueue("PORT " + Integer.valueOf(peer_port) + "\r\n");
         Downloader downloader = new Downloader(download_pending, this);
         Thread downloader_t = new Thread(downloader, "Downloader");
         downloader_t.start();

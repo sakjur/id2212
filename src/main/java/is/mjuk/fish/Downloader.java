@@ -67,6 +67,7 @@ public class Downloader implements Runnable {
                             out_file.write(bytes, 0, read);
                         }
                         download_pending.remove(filename);
+                        this.parent.share();
                         System.out.println("Downloaded " + filename);
                         socket.close();
                         break;
