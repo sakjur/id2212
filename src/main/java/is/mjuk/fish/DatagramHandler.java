@@ -9,7 +9,6 @@ import java.net.MulticastSocket;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.stream.Stream;
 
 public class DatagramHandler implements ConnectorInterface, Runnable {
     private HashMap<String, ArrayList<InetSocketAddress>> download_pending;
