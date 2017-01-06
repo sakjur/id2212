@@ -17,9 +17,9 @@ import java.util.stream.Stream;
 
 public class Client {
     private String path;
-    private InetSocketAddress server;
     private File[] files;
-    private ServerConnector conn;
+    private Thread conn_t;
+    private DatagramHandler conn;
     private HashMap<String, ArrayList<InetSocketAddress>> download_pending =
         new HashMap<String, ArrayList<InetSocketAddress>>();
     private String destination = "/tmp";
@@ -28,27 +28,17 @@ public class Client {
         Integer port = 7000;
 
         String path = Helpers.get(argv, 0, "./fish");
-        String host = Helpers.get(argv, 1, "localhost");
-        try {
-            port = Integer.parseInt(Helpers.get(argv, 2, "7000"));
-        } catch (NumberFormatException e) {
-            Helpers.print_err("Could not resolve port number",
-                "Integer between 0 and 65535", argv[2]);
-            System.exit(-1);
-        }
 
-
-        Client c = new Client(path, new InetSocketAddress(host, port));
+        Client c = new Client(path);
         c.share();
         c.cli_loop();
     }
 
-    public Client(String path, InetSocketAddress server) {
+    public Client(String path) {
         this.path = path;
-        this.server = server;
-        this.conn = new ServerConnector(server, download_pending);
-        Thread t = new Thread(this.conn, "Server Connector");
-        t.start();
+        this.conn = new DatagramHandler(download_pending, this);
+        this.conn_t = new Thread(this.conn, "Server Connector");
+        this.conn_t.start();
     }
 
     /**
@@ -59,14 +49,11 @@ public class Client {
     }
 
     /**
-     * Update and send the list of shared files to the server
+     * Update the list of shared files
      */
     public void share() {
-        System.out.format(Helpers.CYAN + "%s" + Helpers.RESET +
-                " -> " + Helpers.PURPLE + "%s:%d\n" + Helpers.RESET,
-            this.path,
-            server.getHostString(),
-            server.getPort()
+        System.out.format("Sharing " + Helpers.CYAN + "%s" + Helpers.RESET,
+            this.path
         );
 
         File f = new File(this.path);
@@ -82,10 +69,6 @@ public class Client {
         }
 
         this.files = this.get_filelist(f);
-
-        for (File file : files) {
-            conn.enqueue("SHARE " + file.getName() + "\r\n");
-        }
     }
 
     /**
@@ -142,7 +125,7 @@ public class Client {
                 line = in.readLine();
                 
                 if (line.startsWith("exit")) {
-                    this.conn.exit();
+                    this.conn_t.interrupt();
                     downloader_t.interrupt();
                     System.exit(0);
                 }
