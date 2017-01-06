@@ -52,7 +52,7 @@ public class Client {
      * Update the list of shared files
      */
     public void share() {
-        System.out.format("Sharing " + Helpers.CYAN + "%s" + Helpers.RESET,
+        System.out.format("Sharing " + Helpers.CYAN + "%s" + Helpers.RESET + "\n",
             this.path
         );
 
@@ -84,7 +84,7 @@ public class Client {
      * Filters out regular files from the directory f (or f itself if a regular
      * file) which are read-able by the current user and returns them in a list
      * of {@link java.io.File} objects
-     * 
+     *
      * @param f Location of the input file or directory
      * @return Array of regular files within the directory pointed to by f or
      * an array containing only f if f is a regular file
@@ -94,7 +94,7 @@ public class Client {
         if (f.isDirectory()) {
             Stream<File> file_stream = Arrays.stream(f.listFiles())
                 .filter(x -> x.isFile())
-                .filter(x -> x.canRead()); 
+                .filter(x -> x.canRead());
             files = file_stream.toArray(File[]::new);
         } else {
             files = new File[]{f};
@@ -114,7 +114,6 @@ public class Client {
             peer_port = p.getPort();
         }
 
-        conn.enqueue("PORT " + Integer.valueOf(peer_port) + "\r\n");
         Downloader downloader = new Downloader(download_pending, this);
         Thread downloader_t = new Thread(downloader, "Downloader");
         downloader_t.start();
@@ -123,19 +122,21 @@ public class Client {
             System.out.print("||| ");
             try {
                 line = in.readLine();
-                
+
                 if (line.startsWith("exit")) {
                     this.conn_t.interrupt();
                     downloader_t.interrupt();
                     System.exit(0);
                 }
                 if (line.startsWith("find ")) {
-                    this.conn.enqueue("FIND " + line.substring(5) + "\r\n");
+                    this.conn.enqueue("FIND " + String.valueOf(peer_port) + " " +
+                            line.substring(5) + "\r\n");
                 }
 
                 if (line.startsWith("download ")) {
                     String target = line.substring(9);
-                    this.conn.enqueue("FIND " + target + "\r\n");
+                    this.conn.enqueue("FIND " + String.valueOf(peer_port) + " " +
+                            target + "\r\n");
                     this.download_pending.put(target, new ArrayList<InetSocketAddress>());
                 }
 
