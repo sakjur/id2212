@@ -30,10 +30,25 @@ public class Downloader implements Runnable {
         this.parent = parent;
     }
 
+    /**
+     * Targets a file for eventual downloading
+     * <p>
+     * If a hoststring for a file appears, download the file
+     *
+     * @param filename The name of the target file to be downloaded
+     */
     public void add_file(String filename) {
         download_targets.add(filename);
     }
 
+    /**
+     * Receives information about a host and a file from a search
+     * <p>
+     * Adds information about a host having a file to the queue
+     * 
+     * @param hoststring A string of the format "HOST" "PORT" "FILENAME" with
+     * information about a single host having a specific file
+     */
     public void add_hoststring(String hoststring) {
         try {
             this.hoststrings.put(hoststring);
@@ -43,6 +58,9 @@ public class Downloader implements Runnable {
         }
     }
 
+    /**
+     * Iterates over the queue of hoststrings and downloads targeted files
+     */
     public void run() {
         String[] s_data;
         while(true) {

@@ -7,6 +7,15 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * Listens to the peer sharing for information about searches
+ * <p>
+ * Opens a UDP listening socket which the {@link is.mjuk.fish.DatagramHandler}
+ * connects to and sends information about having a file available to.
+ *
+ * Uses the same port as the {@link is.mjuk.fish.PeerListener} for the
+ * particular peer
+ */
 public class UnicastListener implements Runnable {
     Integer port;
     Downloader downloader;
