@@ -20,9 +20,9 @@ public class Client {
     private File[] files;
     private Thread conn_t;
     private DatagramHandler conn;
-    private HashMap<String, ArrayList<InetSocketAddress>> download_pending =
-        new HashMap<String, ArrayList<InetSocketAddress>>();
     private String destination = "/tmp";
+    private Downloader downloader;
+    private Thread downloader_t;
 
     public static void main(String[] argv) {
         Integer port = 7000;
@@ -30,15 +30,23 @@ public class Client {
         String path = Helpers.get(argv, 0, "./fish");
 
         Client c = new Client(path);
-        c.share();
         c.cli_loop();
     }
 
     public Client(String path) {
         this.path = path;
-        this.conn = new DatagramHandler(download_pending, this);
+        this.conn = new DatagramHandler(this);
         this.conn_t = new Thread(this.conn, "Server Connector");
         this.conn_t.start();
+
+        this.downloader = new Downloader(this);
+        this.downloader_t = new Thread(downloader, "Downloader");
+        this.downloader_t.start();
+
+        System.out.format("Sharing " + Helpers.CYAN + "%s" + Helpers.RESET + "\n",
+            this.path
+        );
+        this.share();
     }
 
     /**
@@ -52,10 +60,6 @@ public class Client {
      * Update the list of shared files
      */
     public void share() {
-        System.out.format("Sharing " + Helpers.CYAN + "%s" + Helpers.RESET + "\n",
-            this.path
-        );
-
         File f = new File(this.path);
         if (f.exists() != true) {
             Helpers.print_err("File does not exist",
@@ -114,9 +118,10 @@ public class Client {
             peer_port = p.getPort();
         }
 
-        Downloader downloader = new Downloader(download_pending, this);
-        Thread downloader_t = new Thread(downloader, "Downloader");
-        downloader_t.start();
+        this.conn.setPort(peer_port);
+        UnicastListener response_server = new UnicastListener(peer_port, this.downloader);
+        Thread response_server_t = new Thread(response_server, "Unicast Server");
+        response_server_t.start();
 
         while (true) {
             System.out.print("||| ");
@@ -126,6 +131,8 @@ public class Client {
                 if (line.startsWith("exit")) {
                     this.conn_t.interrupt();
                     downloader_t.interrupt();
+                    response_server_t.interrupt();
+                    peer_t.interrupt();
                     System.exit(0);
                 }
                 if (line.startsWith("find ")) {
@@ -137,7 +144,7 @@ public class Client {
                     String target = line.substring(9);
                     this.conn.enqueue("FIND " + String.valueOf(peer_port) + " " +
                             target + "\r\n");
-                    this.download_pending.put(target, new ArrayList<InetSocketAddress>());
+                    this.downloader.add_file(target);
                 }
 
                 if (line.startsWith("destination ")) {

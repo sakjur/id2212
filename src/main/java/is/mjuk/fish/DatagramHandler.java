@@ -3,15 +3,14 @@ package is.mjuk.fish;
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class DatagramHandler implements ConnectorInterface, Runnable {
-    private HashMap<String, ArrayList<InetSocketAddress>> download_pending;
     private int port = -1;
     private MulticastSocket m_socket;
     private Client parent;
@@ -19,9 +18,7 @@ public class DatagramHandler implements ConnectorInterface, Runnable {
     private InetAddress address;
     private int m_port = 7000;
 
-    public DatagramHandler(HashMap<String, ArrayList<InetSocketAddress>> download_pending,
-            Client parent) {
-        this.download_pending = download_pending;
+    public DatagramHandler(Client parent) {
         this.parent = parent;
         try {
             this.address = InetAddress.getByName("239.10.10.10");
@@ -77,9 +74,13 @@ public class DatagramHandler implements ConnectorInterface, Runnable {
 
                     for (File f : this.parent.getFiles()) {
                         if (f.getName().equals(filename)) {
-                            System.out.println("\nFound " + filename +
-                                    " " + dp.getAddress().getHostName() +
-                                    " " + String.valueOf(port));
+                            String data_s = Integer.toString(this.port) + " " + filename;
+                            byte[] data = data_s.getBytes("UTF-8");
+                            DatagramPacket response = new DatagramPacket(data,
+                                    data.length, dp.getAddress(), port);
+                            DatagramSocket socket = new DatagramSocket(0);
+                            Thread.sleep(ThreadLocalRandom.current().nextInt(1250));
+                            socket.send(response);
                         }
                     }
                 } else {

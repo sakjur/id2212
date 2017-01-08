@@ -18,7 +18,6 @@ public class PeerListener implements Runnable {
     private Client parent;
     private Integer port = -1;
     private ServerSocket socket = null;
-    private HashMap<String, File> file_list = new HashMap<String, File>();
 
     /**
      * Initialize variables and open a ServerSocket
@@ -38,10 +37,6 @@ public class PeerListener implements Runnable {
         } catch (IOException e) {
             Helpers.print_err("Opening peer listener failed", e.toString());
             this.port = -1;
-        }
-
-        for (File file : parent.getFiles()) {
-            file_list.put(file.getName(), file);
         }
     }
 
@@ -63,7 +58,7 @@ public class PeerListener implements Runnable {
         while (true) {
             try {
                 Socket conn = socket.accept();
-                SinglePeerListener peer = new SinglePeerListener(conn, file_list);
+                SinglePeerListener peer = new SinglePeerListener(conn, parent);
                 Thread peer_t = new Thread(peer, "Single Peer Listener");
                 peer_t.start();
             } catch (IOException e) {
@@ -77,15 +72,14 @@ public class PeerListener implements Runnable {
      */
     public class SinglePeerListener implements Runnable {
         private Socket conn;
-        private HashMap<String, File> file_list;
+        private Client parent;
 
         /**
          * @param conn The connection to use to send a file
-         * @param file_list The files that are available to send
          */
-        public SinglePeerListener(Socket conn, HashMap<String, File> file_list) {
+        public SinglePeerListener(Socket conn, Client parent) {
             this.conn = conn;
-            this.file_list = file_list;
+            this.parent = parent;
         }
 
         public void run() {
@@ -110,7 +104,13 @@ public class PeerListener implements Runnable {
                 }
 
                 if (file_to_send != null) {
-                    File file = file_list.get(file_to_send);
+                    File file = null; 
+                    for (File f : parent.getFiles()) {
+                        if (f.getName().equals(file_to_send)) {
+                            file = f;
+                            continue;
+                        }
+                    }
                     if (file == null) {
                         byte[] e_did_not_find = "E_DNF".getBytes();
                         out.write(e_did_not_find);
