@@ -1,0 +1,3 @@
+[submodule "Droidy"]
+	path = Droidy
+	url = gh:sakjur/Droidy
