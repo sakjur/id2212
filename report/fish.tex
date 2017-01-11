@@ -6,12 +6,13 @@
 \title{FISH}
 \author{Emil Tullstedt}
 
-\hyphenation{OpenJDK} 
+\hyphenation{OpenJDK}
 
 \begin{document}
 \maketitle
 \tableofcontents
 
+\newpage
 \section{Task Specification}
 
 FISH is a \textit{distributed} file sharing system for local networks using
@@ -67,12 +68,13 @@ The entire FISH-implementation is packaged in the \textit{is.mjuk.fish} Java
 package with separation of concerns on a class-level. The source files are
 available in \textit{$<$gitroot$>$/src/main/java/is/mjuk/fish}.
 
-\begin{description}[align=right,labelwidth=2cm]
+\begin{description}
     \item[Client] Command-line interface and launcher for the FISH protocol implemenation
     \item[DatagramHandler] Handles multicasting between peers
     \item[Downloader] Thread which download requested files in the background
     \item[Helpers] Static functions and constants that can be used for convenience
     \item[PeerListener] Open a ServerSocket that sends file per request
+    \item[PeerListener.SinglePeerListener] Handles a single client for a PeerListener
     \item[UnicastListener] Listens to the peer sharing for information about searches
 \end{description}
 
@@ -80,6 +82,54 @@ There is also a single interface \texttt{ConnectorInterface} which is currently
 used only by \texttt{DatagramHandler}. The \texttt{ConnectorInterface} defines
 a bare minimum for a class running on one or more threads which communicates
 over one or more sockets.
+
+\subsubsection{The story of how classes relate to each other}
+
+The application execution has a single entry point from which each and every
+peer much originate, and that is the \texttt{Client}-class. The \texttt{Client} starts by creating
+it's \texttt{DatagramHandler} and \texttt{Downloader} (in separate threads) for connecting to the
+peer swarm and preparing for future downloads. They are both stored as class 
+variables (two each, one for the Thread-object and one for the class itself).
+
+Both these classes gets access to the \texttt{Client}'s \texttt{this} object in order
+for the \texttt{Downloader} know where to store files and update the file
+listing after a download and for the \texttt{DatagramHandler} object to be
+able to determine if a file is avaiable in the client's shared file list or not.
+
+The \texttt{PeerListener} is started from the \texttt{Client} to prepare the peer to send files
+to requesting peers and handles the TCP connections between the client and other
+clients. The \texttt{PeerListener} is passed with the \texttt{this} object for the
+\texttt{Client} in order to be able to fetch a new list of files when necessary.
+\texttt{PeerListener} opens up a random TCP-port between 28000 and 28800 for it's
+\texttt{ServerSocket}.
+
+For every incoming requesting the \texttt{PeerListener} defers it's connection
+socket to a \texttt{SinglePeerListener}-thread which is the "active" class
+within the \texttt{PeerListener}-class and handles the actual communication
+with the other peer. For most intents and purposes, the \texttt{PeerListener}
+name is used for both these two classes interchangeably (as they are simply an
+implementational detail).
+
+The \texttt{UnicastListener} is started and has access to the \texttt{Downloader}
+and receives the port number on which the \texttt{PeerListener} listens in order
+to assign the same port for UDP.
+
+The \texttt{UnicastListener} transmitts information about file locations it gets
+access to to the \texttt{Downloader} which determines if the data is queued for download
+or not. If the \texttt{Downloader} determines that the file
+should be downloaded, it starts a download request to a foreign
+\texttt{PeerListener} (or compatible TCP-socket in another implementation of this
+FISH-protocol).
+
+The sockets opened are in summary:
+
+\begin{itemize}
+    \item An UDP multicast listening socket in \texttt{DatagramHandler}
+    \item An UDP unicast sending socket in \texttt{DatagramHandler}
+    \item A TCP server socket in \texttt{PeerListener}
+    \item An UDP unicast listening socket in \texttt{UnicastListener}
+    \item A TCP client socket in \texttt{Downloader}
+\end{itemize}
 
 \subsection{UDP Multicast for File Discovery}
 
@@ -172,7 +222,7 @@ run the application.
 
 \section{Documentation}
 
-The implementation's documentation is availabe in Javadoc-form on 
+The implementation's documentation is availabe in Javadoc-form on
 
 \url{https://sakjur.mjuk.is/id2212}
 

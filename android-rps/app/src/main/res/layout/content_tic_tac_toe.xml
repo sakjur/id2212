@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_connect"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:orientation="vertical"
+    tools:context="is.mjuk.droid.droidy.ConnectActivity">
+
+
+    <Button
+        android:text="Rock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/rock"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true"
+        android:onClick="sendRock" />
+
+    <Button
+        android:text="Paper"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/paper"
+        android:layout_alignBaseline="@+id/rock"
+        android:layout_alignBottom="@+id/rock"
+        android:layout_centerHorizontal="true"
+        android:onClick="sendPaper" />
+
+    <Button
+        android:text="Scissor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/paper"
+        android:layout_alignParentEnd="true"
+        android:id="@+id/scissor"
+        android:onClick="sendScissor" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/mainTitle"
+        android:text="Rock Papers Scissors"
+        android:textSize="28sp"
+        android:fontFamily="casual"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true" />
+
+    <Button
+        android:text="Go back to main screen"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:id="@+id/mainScreen"
+        android:onClick="goHome" />
+
+    <TextView
+        android:text="Connecting..."
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/scorePlayerBoard"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="12dp"
+        android:id="@+id/gameMessage"
+        android:textAlignment="center" />
+
+    <TextView
+        android:text="me"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/scorePlayerLabel"
+        android:layout_marginTop="32dp"
+        android:layout_below="@+id/mainTitle"
+        android:layout_alignStart="@+id/mainScreen"
+        android:layout_marginStart="9dp" />
+
+    <TextView
+        android:text="0"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/scorePlayerBoard"
+        android:textSize="28sp"
+        android:layout_below="@+id/scorePlayerLabel"
+        android:layout_alignStart="@+id/scorePlayerLabel" />
+
+    <TextView
+        android:text="0"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/scoreComputerBoard"
+        android:textSize="28sp"
+        android:layout_above="@+id/gameMessage"
+        android:layout_alignEnd="@+id/mainScreen" />
+
+    <TextView
+        android:text="opponent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/scoreComputerLabel"
+        android:layout_above="@+id/scoreComputerBoard"
+        android:layout_alignStart="@+id/scissor" />
+
+</RelativeLayout>

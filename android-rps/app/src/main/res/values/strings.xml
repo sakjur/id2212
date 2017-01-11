@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Droidy</string>
+    <string name="hostname">Enter hostname...</string>
+    <string name="port">Enter port (default 7001)</string>
+    <string name="title_activity_tic_tac_toe">TicTacToeActivity</string>
+</resources>
