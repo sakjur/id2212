@@ -10,6 +10,9 @@ import java.net.MulticastSocket;
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Handles multicasting between peers
+ */
 public class DatagramHandler implements ConnectorInterface, Runnable {
     private int port = -1;
     private MulticastSocket m_socket;
@@ -18,6 +21,12 @@ public class DatagramHandler implements ConnectorInterface, Runnable {
     private InetAddress address;
     private int m_port = 7000;
 
+    /**
+     * Creates a socket for multicasting and joins the FISH group
+     *
+     * @param parent The {@link is.mjuk.fish.Client} which initialized this
+     * object
+     */
     public DatagramHandler(Client parent) {
         this.parent = parent;
         try {
@@ -30,14 +39,38 @@ public class DatagramHandler implements ConnectorInterface, Runnable {
         }
     }
 
+    /**
+     * Sets the "sharing"-port
+     * <p>
+     * This value is presented to other peers when sharing information about
+     * an available file. The value should be a port number which is available
+     * as a {@link is.mjuk.fish.PeerListener} (over TCP) and a
+     * {@link is.mjuk.fish.UnicastListener} (over UDP)
+     *
+     * @param port New value for the port variable
+     */
     public void setPort(int port) {
         this.port = port;
     }
 
+    /**
+     * Returns true if the datagram handler hasn't exited 
+     * @return True if there's a running datagram handler connected to the
+     * object
+     */
     public boolean isRunning() {
         return this.running;
     }
 
+    /**
+     * Send data to the multicast group
+     * <p>
+     * Name is slightly confusing as enqueue was used for the TCP-send queue.
+     * On UDP multicasting, whatever is received here is sent over UDP
+     * immediately as there is no need to wait for an ACK.
+     *
+     * @param data Data to be sent to the FISH multicast group. Max 4096 bytes
+     */
     public void enqueue(byte[] data) {
         if (data.length > 4096) {
             Helpers.print_err("Could not send datagram",
@@ -54,6 +87,17 @@ public class DatagramHandler implements ConnectorInterface, Runnable {
         }
     }
 
+    /**
+     * Main function for running in thread
+     * <p>
+     * Listens for multicast messages to the FISH multicast group. If a
+     * FIND "port" "file"
+     * message is received, looks up if the parent {@link is.mjuk.fish.Client}
+     * has that file in it's sharing directory and if so sends a unicast UDP message to
+     * the port indicated by the FIND message containing information about
+     * the shared port for this {@link is.mjuk.fish.Client} and which file
+     * it is talking about.
+     */
     public void run() {
         while(this.isRunning()) {
             byte[] buffer = new byte[4096];

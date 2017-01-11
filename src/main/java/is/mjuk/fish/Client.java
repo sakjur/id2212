@@ -15,6 +15,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
+/**
+ * Command-line interface and launcher for the FISH protocol implemenation
+ */
 public class Client {
     private String path;
     private File[] files;
@@ -24,6 +27,14 @@ public class Client {
     private Downloader downloader;
     private Thread downloader_t;
 
+    /**
+     * Main entrypoint of the application
+     * <p>
+     * Sets value for shared directory and hands over to the Client constructor
+     *
+     * @param argv Arguments from command line. First argument is the shared
+     * directory or file. Defaults to ./fish
+     */
     public static void main(String[] argv) {
         Integer port = 7000;
 
@@ -33,6 +44,11 @@ public class Client {
         c.cli_loop();
     }
 
+    /**
+     * Initialized the client and starts necessary threads
+     *
+     * @param argv Shared directory or file
+     */
     public Client(String path) {
         this.path = path;
         this.conn = new DatagramHandler(this);

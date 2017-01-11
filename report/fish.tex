@@ -1,0 +1,179 @@
+\documentclass[11pt]{article}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage[colorlinks]{hyperref}
+
+\title{FISH}
+\author{Emil Tullstedt}
+
+\hyphenation{OpenJDK} 
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Task Specification}
+
+FISH is a \textit{distributed} file sharing system for local networks using
+UDP multicast to search for files shared by a FISH-peer in the network.
+\footnote{There is also an implementation where the file searching is done using
+a centralized server and persistent TCP connections between that server and
+the peers in the network which is not the subject of this report} A file is
+shared either individually or by being part
+of the shared directory for the FISH client and is assumed to be uniquely
+described by filename within the network.
+
+When a file is downloaded from another peer in the network, it will be stored
+in a specified download destination directory (by default \texttt{/tmp}). If
+the specified download destination directory is equivalent (either by being the
+same as or a link to) to the shared directory a file downloaded through FISH
+will cause an automatic renewal of files shared from the specific host.
+
+\section{Development Environment}
+
+\subsection{The implementor's hardware \textit{\&} software}
+
+\begin{description}[align=right,labelwidth=2cm]
+\item[Computer] Lenovo ThinkPad X250 with Intel Core i3-5010U @ 2.10GHz and 8 GB DDR3
+    RAM
+\item[Operating System] Fedora 23 running Intel 64 Linux 4.8.13
+\item[Java JRE \& JDK] 64-bit OpenJDK 1.8.0 (Java SE 8)
+\item[Build system] Gradle 2.5
+\end{description}
+
+\subsection{Compiling \textit{\&} Running}
+\label{subsec:compile}
+
+\begin{enumerate}
+    \item Go to the root directory in the \textit{git repository}
+    \item Make sure the \textbf{multicast} repository is the currently checked
+        out repository (by running \texttt{git checkout multicast} if necessary)
+    \item Run \texttt{\$ gradle build} in order to build the application.
+    \item Go to \textit{build/classes/main}
+    \item Run \texttt{\$ java is.mjuk.fish.Client
+        $<$\textit{file or directory to share}$>$}
+\end{enumerate}
+
+The application is now running and should be able to parse the commands
+\textbf{find}, \textbf{destination} and \textbf{download} to find a file,
+get (without any arguments) or set the download destination (default
+\texttt{/tmp}) and download a file to the current download destination.
+
+\section{Description of Technical Implemenation}
+
+\subsection{Overview of Classes}
+
+The entire FISH-implementation is packaged in the \textit{is.mjuk.fish} Java
+package with separation of concerns on a class-level. The source files are
+available in \textit{$<$gitroot$>$/src/main/java/is/mjuk/fish}.
+
+\begin{description}[align=right,labelwidth=2cm]
+    \item[Client] Command-line interface and launcher for the FISH protocol implemenation
+    \item[DatagramHandler] Handles multicasting between peers
+    \item[Downloader] Thread which download requested files in the background
+    \item[Helpers] Static functions and constants that can be used for convenience
+    \item[PeerListener] Open a ServerSocket that sends file per request
+    \item[UnicastListener] Listens to the peer sharing for information about searches
+\end{description}
+
+There is also a single interface \texttt{ConnectorInterface} which is currently
+used only by \texttt{DatagramHandler}. The \texttt{ConnectorInterface} defines
+a bare minimum for a class running on one or more threads which communicates
+over one or more sockets.
+
+\subsection{UDP Multicast for File Discovery}
+
+A peer in the network may ask for files over the UDP Multicast channel
+\textit{239.10.10.10}. If a peer (including the original peer) finds the
+specified file amongst their shared files, they will respond to the original
+query using unicast.
+
+The peer who queried for the file may proceed to ignore the information,
+display it to the user or open a TCP-connection to a selected peer in order
+to download the file to it's own destination directory. The implemenation
+assumes the user never wants to ask for files for the purpose of ignoring the
+replies, although that might be abused by a malicious client which is
+purposefully trying to incite a DDoS of a network if FISH were widely deployed
+within a network or in a more legitimate use-case used by a client which has
+successfully downloaded a file and isn't interested by more file listings.
+
+
+\subsection{Network Packages}
+
+All communication is serialized over the network as UTF-8 byte packages except
+for sending the files in themselves (which are transmitted as-is in 4096 byte
+chunks)
+
+\subsubsection{Requesting a file listing}
+
+A request for a listing of available sites where a file may be found is sent
+over the UDP Multicast channel in the format
+\texttt{FIND $<$unicast port$>$ $<$file name (may contain spaces)$>$}.
+
+\subsubsection{Informing about the existance of a file}
+
+A response to a file listing request takes the form
+\texttt{$<$TCP Peer port$>$ $<$file name (may contain space)$>$} and is
+sent to the UDP unicast port given in a file listing request.
+
+\subsubsection{Requesting a file download}
+
+The requester opens a connection to the requestees TCP peer port followed by
+\texttt{DOWNLOAD $<$file name (may contain spaces)$>$}. The requestee responds
+by sending a 5 bytes status message as described below
+
+\begin{description}
+    \item[\texttt{E\_DNF}] Did not find the file (and won't send)
+    \item[\texttt{K\_SEN}] Found the file. Proceeding to send it to requester
+\end{description}
+
+If an error occurred (status message beginning with \texttt{E} in case of
+future expansion of the FISH protocol) the connection is terminated and the
+requester is assumed to proceed to the next possessor of the file (if possible)
+\footnote{I.e. the file is available from more peers. The requester should
+request the file from the next available peer until successful and this is how
+my implementation is handling this}
+and not contact the requestee anymore for the same file request. \textit{Note:}
+The requester should not assume repeated failure if the user initializes a new
+request and should thus ask the requestee again if so happens.
+
+If the file is successfully found and transmission begins (as indicated by
+\texttt{K\_SEN}) the file is sent over the same established TCP socket in
+incremental chunks of 4096 bytes (statically assigned value) until done.
+This operation is assumed successful if the connection is gracefully closed.
+
+\subsection{User Interface}
+\label{subsec:ui}
+
+The user communicates with FISH using the FISH Client which is a simple
+command-line interface which accepts
+\textbf{find}, \textbf{destination} and \textbf{download} as described in
+section \ref{subsec:compile}.
+
+\begin{description}[align=right]
+    \item[destination] Display current download destination
+    \item[destination $<$path$>$] Set a new download destination
+    \item[download $<$file$>$] Send a file listing request for the specified
+        file and download it automatically
+    \item[exit] Close all connections gracefully and die
+    \item[find $<$file$>$] Send a file listing request for the specified file
+\end{description}
+
+Whenever the client receives the response to a file listing request it displays
+the filename, hostname and TCP port to the user (whom may then proceed to
+manually download the file using netcat or a similar tool, by simply stripping
+the first five bytes of the resulting file).
+
+\section{Running the Application}
+
+See section \ref{subsec:compile} "Compiling \textit{\&} Running" and
+section \ref{subsec:ui} "User Interface" for instructions on how to compile and
+run the application.
+
+\section{Documentation}
+
+The implementation's documentation is availabe in Javadoc-form on 
+
+\url{https://sakjur.mjuk.is/id2212}
+
+\end{document}
