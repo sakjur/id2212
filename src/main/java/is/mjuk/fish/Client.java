@@ -47,7 +47,7 @@ public class Client {
     /**
      * Initialized the client and starts necessary threads
      *
-     * @param argv Shared directory or file
+     * @param path Shared directory or file
      */
     public Client(String path) {
         this.path = path;
