@@ -15,40 +15,54 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
+/**
+ * Command-line interface and launcher for the FISH protocol implemenation
+ */
 public class Client {
     private String path;
-    private InetSocketAddress server;
     private File[] files;
-    private ServerConnector conn;
-    private HashMap<String, ArrayList<InetSocketAddress>> download_pending =
-        new HashMap<String, ArrayList<InetSocketAddress>>();
+    private Thread conn_t;
+    private DatagramHandler conn;
     private String destination = "/tmp";
+    private Downloader downloader;
+    private Thread downloader_t;
 
+    /**
+     * Main entrypoint of the application
+     * <p>
+     * Sets value for shared directory and hands over to the Client constructor
+     *
+     * @param argv Arguments from command line. First argument is the shared
+     * directory or file. Defaults to ./fish
+     */
     public static void main(String[] argv) {
         Integer port = 7000;
 
         String path = Helpers.get(argv, 0, "./fish");
-        String host = Helpers.get(argv, 1, "localhost");
-        try {
-            port = Integer.parseInt(Helpers.get(argv, 2, "7000"));
-        } catch (NumberFormatException e) {
-            Helpers.print_err("Could not resolve port number",
-                "Integer between 0 and 65535", argv[2]);
-            System.exit(-1);
-        }
 
-
-        Client c = new Client(path, new InetSocketAddress(host, port));
-        c.share();
+        Client c = new Client(path);
         c.cli_loop();
     }
 
-    public Client(String path, InetSocketAddress server) {
+    /**
+     * Initialized the client and starts necessary threads
+     *
+     * @param argv Shared directory or file
+     */
+    public Client(String path) {
         this.path = path;
-        this.server = server;
-        this.conn = new ServerConnector(server, download_pending);
-        Thread t = new Thread(this.conn, "Server Connector");
-        t.start();
+        this.conn = new DatagramHandler(this);
+        this.conn_t = new Thread(this.conn, "Server Connector");
+        this.conn_t.start();
+
+        this.downloader = new Downloader(this);
+        this.downloader_t = new Thread(downloader, "Downloader");
+        this.downloader_t.start();
+
+        System.out.format("Sharing " + Helpers.CYAN + "%s" + Helpers.RESET + "\n",
+            this.path
+        );
+        this.share();
     }
 
     /**
@@ -59,16 +73,9 @@ public class Client {
     }
 
     /**
-     * Update and send the list of shared files to the server
+     * Update the list of shared files
      */
     public void share() {
-        System.out.format(Helpers.CYAN + "%s" + Helpers.RESET +
-                " -> " + Helpers.PURPLE + "%s:%d\n" + Helpers.RESET,
-            this.path,
-            server.getHostString(),
-            server.getPort()
-        );
-
         File f = new File(this.path);
         if (f.exists() != true) {
             Helpers.print_err("File does not exist",
@@ -82,10 +89,6 @@ public class Client {
         }
 
         this.files = this.get_filelist(f);
-
-        for (File file : files) {
-            conn.enqueue("SHARE " + file.getName() + "\r\n");
-        }
     }
 
     /**
@@ -101,7 +104,7 @@ public class Client {
      * Filters out regular files from the directory f (or f itself if a regular
      * file) which are read-able by the current user and returns them in a list
      * of {@link java.io.File} objects
-     * 
+     *
      * @param f Location of the input file or directory
      * @return Array of regular files within the directory pointed to by f or
      * an array containing only f if f is a regular file
@@ -111,7 +114,7 @@ public class Client {
         if (f.isDirectory()) {
             Stream<File> file_stream = Arrays.stream(f.listFiles())
                 .filter(x -> x.isFile())
-                .filter(x -> x.canRead()); 
+                .filter(x -> x.canRead());
             files = file_stream.toArray(File[]::new);
         } else {
             files = new File[]{f};
@@ -131,29 +134,33 @@ public class Client {
             peer_port = p.getPort();
         }
 
-        conn.enqueue("PORT " + Integer.valueOf(peer_port) + "\r\n");
-        Downloader downloader = new Downloader(download_pending, this);
-        Thread downloader_t = new Thread(downloader, "Downloader");
-        downloader_t.start();
+        this.conn.setPort(peer_port);
+        UnicastListener response_server = new UnicastListener(peer_port, this.downloader);
+        Thread response_server_t = new Thread(response_server, "Unicast Server");
+        response_server_t.start();
 
         while (true) {
             System.out.print("||| ");
             try {
                 line = in.readLine();
-                
+
                 if (line.startsWith("exit")) {
-                    this.conn.exit();
+                    this.conn_t.interrupt();
                     downloader_t.interrupt();
+                    response_server_t.interrupt();
+                    peer_t.interrupt();
                     System.exit(0);
                 }
                 if (line.startsWith("find ")) {
-                    this.conn.enqueue("FIND " + line.substring(5) + "\r\n");
+                    this.conn.enqueue("FIND " + String.valueOf(peer_port) + " " +
+                            line.substring(5) + "\r\n");
                 }
 
                 if (line.startsWith("download ")) {
                     String target = line.substring(9);
-                    this.conn.enqueue("FIND " + target + "\r\n");
-                    this.download_pending.put(target, new ArrayList<InetSocketAddress>());
+                    this.conn.enqueue("FIND " + String.valueOf(peer_port) + " " +
+                            target + "\r\n");
+                    this.downloader.add_file(target);
                 }
 
                 if (line.startsWith("destination ")) {

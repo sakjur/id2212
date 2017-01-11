@@ -1,12 +1,13 @@
 /**
- * Main class for the FISH file sharing client for ID2212
- *
  * (c) 2016-2017 Emil Tullstedt <emiltu(a)kth.se>
  */
 package is.mjuk.fish;
 
 import java.lang.NumberFormatException;
 
+/**
+ * Static functions and constants that can be used for convenience
+ */
 public class Helpers {
     /*
      * The ANSI codes are stolen from Stack Overflow

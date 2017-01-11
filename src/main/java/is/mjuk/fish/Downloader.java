@@ -7,90 +7,125 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.ArrayList;
+import java.util.TreeSet;
 
 /**
  * Thread which download requested files in the background
  */
 public class Downloader implements Runnable {
-    private HashMap<String, ArrayList<InetSocketAddress>> download_pending;
     private Client parent;
+    private LinkedBlockingQueue<String> hoststrings = new LinkedBlockingQueue<String>();
+    private TreeSet<String> download_targets = new TreeSet<String>();
 
     /**
-     * @param download_pending Structure for pending downloads
      * @param parent The {@link is.mjuk.fish.Client} that initialized this
      * downloader
      */
-    public Downloader(HashMap<String, ArrayList<InetSocketAddress>> download_pending,
-            Client parent) {
-        this.download_pending = download_pending;
+    public Downloader(Client parent) {
         this.parent = parent;
     }
 
+    /**
+     * Targets a file for eventual downloading
+     * <p>
+     * If a hoststring for a file appears, download the file
+     *
+     * @param filename The name of the target file to be downloaded
+     */
+    public void add_file(String filename) {
+        download_targets.add(filename);
+    }
+
+    /**
+     * Receives information about a host and a file from a search
+     * <p>
+     * Adds information about a host having a file to the queue
+     * 
+     * @param hoststring A string of the format "HOST" "PORT" "FILENAME" with
+     * information about a single host having a specific file
+     */
+    public void add_hoststring(String hoststring) {
+        try {
+            this.hoststrings.put(hoststring);
+        } catch (InterruptedException e) {
+            // Ignored on purpose. I don't really *care* about edge-cases or
+            // race conditions in this application.
+        }
+    }
+
+    /**
+     * Iterates over the queue of hoststrings and downloads targeted files
+     */
     public void run() {
+        String[] s_data;
         while(true) {
-            for (Map.Entry<String, ArrayList<InetSocketAddress>> file : download_pending.entrySet()) {
-                String filename = file.getKey();
-                System.out.println("Fetching " + filename);
-                for (InetSocketAddress addr : file.getValue()) {
-                    Socket socket = new Socket();
-                    InputStream in;
-                    BufferedOutputStream out;
-                    FileOutputStream out_file;
-                    try {
-                        socket.connect(addr, 1500);
-                        in = socket.getInputStream();
-                        out = new BufferedOutputStream(socket.getOutputStream()); 
-                        File file_dest = new File(this.parent.getDestination() + "/" + filename);
-                        if (!file_dest.createNewFile()) {
-                            Helpers.print_err("Couldn't create file",
-                                    "File already exists or can't be created");
-                            download_pending.remove(filename);
-                            break;
-                        }
-                        out_file = new FileOutputStream(file_dest);
-
-                        String download_cmd = "DOWNLOAD " + filename + "\r\n";
-                        out.write(download_cmd.getBytes());
-                        out.flush();
-                        
-                        byte[] status = new byte[5];
-                        if (in.read(status) != 5) {
-                            Helpers.print_err("Reading status failed",
-                                    "Host: " + addr.getHostName());
-                            continue;
-                        };
-
-                        if (new String(status, "UTF-8").equals("E_DNF")) {
-                            Helpers.print_err("Could not find file on host",
-                                    "Host: " + addr.getHostName());
-                            continue;
-                        }
-
-                        int read = 0;
-                        byte[] bytes = new byte[4096];
-                        while((read = in.read(bytes)) != -1) {
-                            out_file.write(bytes, 0, read);
-                        }
-                        download_pending.remove(filename);
-                        this.parent.share();
-                        System.out.println("Downloaded " + filename);
-                        socket.close();
-                        break;
-                    } catch (IOException e) {
-                        Helpers.print_err("File Download Error", e.toString());
-                    }
-                }
-            }
             try {
-                Thread.sleep(2000); 
+                s_data = hoststrings.take().trim().split(" ");
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
                 return;
+            }
+            String hostname = s_data[0];
+            Integer port = Integer.valueOf(s_data[1]);
+            String filename = String.join(" ",
+                Arrays.copyOfRange(s_data, 2, s_data.length));
+
+            if (download_targets.contains(filename) == false) {
+                continue;
+            }
+
+            InetSocketAddress addr = new InetSocketAddress(hostname, port);
+            Socket socket = new Socket();
+            InputStream in;
+            BufferedOutputStream out;
+            FileOutputStream out_file;
+            try {
+                socket.connect(addr, 1500);
+                in = socket.getInputStream();
+                out = new BufferedOutputStream(socket.getOutputStream());
+                File file_dest = new File(this.parent.getDestination() + "/" + filename);
+                if (!file_dest.createNewFile()) {
+                    Helpers.print_err("Couldn't create file",
+                            "File already exists or can't be created");
+                    download_targets.remove(filename);
+                    continue;
+                }
+                out_file = new FileOutputStream(file_dest);
+
+                String download_cmd = "DOWNLOAD " + filename + "\r\n";
+                out.write(download_cmd.getBytes());
+                out.flush();
+
+                byte[] status = new byte[5];
+                if (in.read(status) != 5) {
+                    Helpers.print_err("Reading status failed",
+                            "Host: " + addr.getHostName());
+                    continue;
+                };
+
+                if (new String(status, "UTF-8").equals("E_DNF")) {
+                    Helpers.print_err("Could not find file on host",
+                            "Host: " + addr.getHostName());
+                    continue;
+                }
+
+                int read = 0;
+                byte[] bytes = new byte[4096];
+                while((read = in.read(bytes)) != -1) {
+                    out_file.write(bytes, 0, read);
+                }
+                download_targets.remove(filename);
+                this.parent.share();
+                System.out.println("Downloaded " + filename);
+                socket.close();
+            } catch (IOException e) {
+                Helpers.print_err("File Download Error", e.toString());
             }
         }
     }
 }
-    
+
